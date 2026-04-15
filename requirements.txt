@@ -1,0 +1,9 @@
+boto3
+feedparser
+networkx
+numpy
+pandas
+plotly
+pytest
+torch
+transformers

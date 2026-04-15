@@ -69,6 +69,16 @@ def test_compute_drift_metrics_with_drift():
     assert metrics["flagged_pct"] > 0.30
 
 
+def test_compute_drift_metrics_accepts_string_scores():
+    from drift import compute_drift_metrics
+    history = [
+        {"confidence_scores": ["0.45", "0.90", "bad"], "flagged_count": 1, "total_spans": 2},
+    ]
+    metrics = compute_drift_metrics(history)
+    assert metrics["mean_confidence"] == 0.675
+    assert metrics["flagged_pct"] == 0.5
+
+
 def test_drift_layer1_triggers():
     """Mean confidence below threshold should trigger drift."""
     from drift import compute_drift_metrics
@@ -147,10 +157,12 @@ def test_f1_per_class():
 
 def test_config_thresholds_sensible():
     from config import (
-        CONFIDENCE_THRESH, DRIFT_MEAN_THRESH, DRIFT_FLAG_PCT,
+        CONFIDENCE_THRESH, DRIFT_LOW_CONFIDENCE_THRESH, DRIFT_MEAN_THRESH, DRIFT_FLAG_PCT,
         DRIFT_WINDOW, MIN_QUEUE_FOR_RETRAIN, F1_IMPROVEMENT_MIN
     )
     assert 0.5 < CONFIDENCE_THRESH < 1.0
+    assert 0.5 < DRIFT_LOW_CONFIDENCE_THRESH < 1.0
+    assert DRIFT_LOW_CONFIDENCE_THRESH <= CONFIDENCE_THRESH
     assert 0.5 < DRIFT_MEAN_THRESH < 1.0
     assert 0.0 < DRIFT_FLAG_PCT < 1.0
     assert DRIFT_WINDOW > 0
