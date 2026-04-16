@@ -28,7 +28,7 @@ def run_stage(script: str, extra_args: list[str], env: dict[str, str]) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run the AI news pipeline locally.")
-    parser.add_argument("--stage", choices=["all", "ingest", "ner", "drift", "graph", "eval"], default="all")
+    parser.add_argument("--stage", choices=["all", "ingest", "ner", "backfill-models", "drift", "graph", "dashboard", "eval"], default="all")
     parser.add_argument("--local-dir", default=str(BASE_DIR / "local_data"), help="Directory for local pipeline outputs.")
     parser.add_argument("--graph-open", action="store_true", help="Open generated graph HTML files in your browser.")
     args = parser.parse_args()
@@ -41,15 +41,18 @@ def main() -> None:
     stage_map = {
         "ingest": ("ingest.py", []),
         "ner": ("NER.py", []),
+        "backfill-models": ("backfill_model_entities.py", []),
         "drift": ("drift.py", []),
         "graph": ("graph.py", ["--dir", args.local_dir]),
+        "dashboard": ("dashboard.py", ["--dir", args.local_dir]),
         "eval": ("eval.py", []),
     }
 
     if args.graph_open:
         stage_map["graph"][1].append("--open")
+        stage_map["dashboard"][1].append("--open")
 
-    stages = ["ingest", "ner", "drift", "graph", "eval"] if args.stage == "all" else [args.stage]
+    stages = ["ingest", "ner", "backfill-models", "drift", "graph", "dashboard", "eval"] if args.stage == "all" else [args.stage]
     print(f"[RUNNER] Local data directory: {args.local_dir}", flush=True)
 
     for stage in stages:

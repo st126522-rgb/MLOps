@@ -18,11 +18,10 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from transformers import AutoModelForTokenClassification, AutoTokenizer
 
-from config import NER_MODEL
+from config import ENTITY_TYPES, NER_MODEL
 from s3_utils import storage_path
 
 
-ENTITY_TYPES = ["ORG", "PER", "LOC", "MISC"]
 LABELS = ["O"] + [f"{prefix}-{entity_type}" for entity_type in ENTITY_TYPES for prefix in ("B", "I")]
 LABEL_TO_ID = {label: index for index, label in enumerate(LABELS)}
 ID_TO_LABEL = {index: label for label, index in LABEL_TO_ID.items()}

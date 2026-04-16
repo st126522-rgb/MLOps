@@ -5,6 +5,7 @@ Load raw articles, run NER, and save entity results plus drift artifacts.
 from transformers import pipeline as hf_pipeline
 
 from config import LABEL_CONFIDENCE_THRESH, NER_MODEL
+from entity_postprocess import merge_model_entities
 from s3_utils import append_drift_log, list_keys, read_json, week_key, write_json
 
 
@@ -45,7 +46,7 @@ def extract_entities(text: str) -> list[dict]:
                     "end": result["end"],
                 }
             )
-        return clean
+        return merge_model_entities(text, clean)
     except Exception as exc:
         print(f"  [WARN] NER error: {exc}")
         return []

@@ -168,3 +168,15 @@ def test_config_thresholds_sensible():
     assert DRIFT_WINDOW > 0
     assert MIN_QUEUE_FOR_RETRAIN > 0
     assert 0.0 < F1_IMPROVEMENT_MIN < 0.1
+
+
+def test_model_entity_postprocessing_adds_model_type():
+    from entity_postprocess import merge_model_entities
+
+    text = "OpenAI released GPT-5 while Anthropic updated Claude 4."
+    entities = [{"entity": "OpenAI", "type": "ORG", "confidence": 0.99, "flagged": False, "start": 0, "end": 6}]
+    merged = merge_model_entities(text, entities)
+
+    model_names = {item["entity"] for item in merged if item["type"] == "MODEL"}
+    assert "GPT-5" in model_names
+    assert "Claude 4" in model_names

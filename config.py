@@ -23,6 +23,7 @@ PREFIX_LABELED = "labeled"
 PREFIX_MODELS = "models"
 PREFIX_EVAL = "eval"
 
+ENTITY_TYPES = ["ORG", "PER", "LOC", "MODEL", "MISC"]
 NER_MODEL = "dslim/bert-base-NER"
 LABEL_CONFIDENCE_THRESH = float(os.environ.get("LABEL_CONFIDENCE_THRESH", "0.85"))
 DRIFT_LOW_CONFIDENCE_THRESH = float(os.environ.get("DRIFT_LOW_CONFIDENCE_THRESH", "0.70"))
@@ -37,5 +38,5 @@ F1_IMPROVEMENT_MIN = 0.005
 RSS_FEEDS = [
     "https://news.google.com/rss/search?q=artificial+intelligence+LLM&hl=en&gl=US&ceid=US:en",
     "https://news.google.com/rss/search?q=OpenAI+Anthropic+DeepSeek&hl=en&gl=US&ceid=US:en",
-    "https://hnrss.org/newest?q=LLM+AI+language+model",
+    "https://hnrss.org/newest?q=LLM",
 ]

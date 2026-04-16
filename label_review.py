@@ -12,6 +12,7 @@ import csv
 import hashlib
 from pathlib import Path
 
+from config import ENTITY_TYPES
 from s3_utils import list_keys, read_json, storage_path, write_json
 
 
@@ -77,7 +78,7 @@ def export_review(limit: int | None = None, output: str | None = None) -> Path:
         "Use status=accept to keep the suggested entity/type.\n"
         "Use status=correct and fill corrected_entity/corrected_type to fix a span.\n"
         "Use status=reject to ignore junk spans.\n"
-        "Valid types are ORG, PER, LOC, and MISC.\n",
+        f"Valid types are {', '.join(ENTITY_TYPES)}.\n",
         encoding="utf-8",
     )
     print(f"[OK] Exported {len(rows)} review rows -> {output_path}")
@@ -105,7 +106,7 @@ def build_datasets(input_path: str | None = None) -> tuple[int, int]:
                 entity = row.get("corrected_entity", "").strip()
                 entity_type = row.get("corrected_type", "").strip()
 
-            if not entity or entity_type not in {"ORG", "PER", "LOC", "MISC"}:
+            if not entity or entity_type not in set(ENTITY_TYPES):
                 continue
 
             sample = {

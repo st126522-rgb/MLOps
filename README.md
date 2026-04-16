@@ -17,6 +17,8 @@ ingest.py  ->  raw batches
 NER.py     ->  entities + drift logs + label queue
 drift.py   ->  drift reports + optional alerts
 graph.py   ->  HTML graph, timeline, and table views
+dashboard.py -> polished graph dashboard with timeframe comparison
+backfill_model_entities.py -> upgrades older outputs with MODEL entities
 eval.py    ->  F1 metrics for the current or candidate model
 label_review.py -> export/import human-reviewed labels
 train.py    -> fine-tune a local candidate model
@@ -31,6 +33,8 @@ ingest.py         Fetches RSS articles
 NER.py            Runs Hugging Face NER on batches
 drift.py          Computes drift metrics from confidence history
 graph.py          Builds graph and dashboard-style HTML outputs
+dashboard.py      Polished local UI for hot topics and graph comparison
+backfill_model_entities.py  Adds MODEL entities to older local outputs
 eval.py           Runs evaluation and gate logic
 s3_utils.py       Shared storage helpers for local mode and S3
 run_local.py      One-command local runner
@@ -74,15 +78,17 @@ Run individual stages:
 ```powershell
 python run_local.py --stage ingest
 python run_local.py --stage ner
+python run_local.py --stage backfill-models
 python run_local.py --stage drift
 python run_local.py --stage graph
+python run_local.py --stage dashboard
 python run_local.py --stage eval
 ```
 
 Optional graph auto-open:
 
 ```powershell
-python run_local.py --stage graph --graph-open
+python run_local.py --stage dashboard --graph-open
 ```
 
 ### 4. Local outputs
@@ -96,6 +102,46 @@ local_data/drift/
 local_data/label-queue/
 local_data/graphs/
 local_data/eval/
+```
+
+## Polished Local Dashboard
+
+The polished dashboard is the UI artifact to validate before AWS hosting:
+
+```powershell
+python run_local.py --stage dashboard --graph-open
+```
+
+It generates:
+
+```text
+local_data/graphs/dashboard_YYYYMMDD_HHMMSS.html
+```
+
+The dashboard includes:
+
+- Hot-topic cards ranked by mentions and confidence.
+- Clear type colors for `ORG`, `MISC`, `PER`, and `LOC`.
+- Confidence and flagged-span trends.
+- Zoomable, pannable graph panels.
+- Two timeframe sliders for comparing graph state across weeks.
+- A minimum node-size filter based on mention count.
+- A minimum edge-strength filter based on shared article co-mentions.
+- A display-labels toggle for decluttering dense views.
+- An only-newly-added-nodes toggle for spotting emerging topics.
+- Entity-type highlight filters for `ORG`, `MISC`, `PER`, and `LOC`.
+- Edge hover text explaining which nodes are connected and how often.
+- New, dropped, and rising entities between the selected timeframes.
+
+## MODEL Entity Type
+
+The base transformer emits `ORG`, `PER`, `LOC`, and `MISC`. This project adds a domain-specific `MODEL` type for AI model and product names such as `GPT-5`, `Claude`, `Gemini`, `DeepSeek`, `Llama`, `Mistral`, `Grok`, `Qwen`, `Sora`, and `DALL-E`.
+
+For new NER runs, [NER.py](/C:/Users/gaurav/OneDrive/Desktop/MLOps/NER.py) adds `MODEL` automatically. For older local entity outputs, run:
+
+```powershell
+python run_local.py --stage backfill-models
+python run_local.py --stage dashboard --graph-open
 ```
 
 ## Complete Local ML Loop Before AWS
