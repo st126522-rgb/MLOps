@@ -324,3 +324,4 @@ Full commands are in [GIT_WORKFLOW.md](/C:/Users/gaurav/OneDrive/Desktop/MLOps/G
 - `local_data/` and generated HTML outputs are ignored by git.
 - The current GitHub Actions file is still a draft and should be aligned with the flat repo layout before relying on it for deployment.
 - `eval.py` uses mock data when no eval test set exists yet.
+- Local level verification complete. Now testing on AWS
