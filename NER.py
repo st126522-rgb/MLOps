@@ -2,15 +2,45 @@
 Load raw articles, run NER, and save entity results plus drift artifacts.
 """
 
+import tempfile
+from pathlib import Path
+
+import boto3
 from transformers import pipeline as hf_pipeline
 
-from config import LABEL_CONFIDENCE_THRESH, NER_MODEL
+from config import BUCKET, LABEL_CONFIDENCE_THRESH, LOCAL_DIR, LOCAL_MODE, NER_MODEL
 from entity_postprocess import merge_model_entities
 from s3_utils import append_drift_log, list_keys, read_json, week_key, write_json
 
 
-print(f"Loading NER model: {NER_MODEL}")
-ner = hf_pipeline("ner", model=NER_MODEL, aggregation_strategy="simple")
+_MODEL_TEMP_DIR = None
+
+
+def resolve_inference_model() -> str:
+    """Use a promoted current model when present, otherwise fall back to the base model."""
+    local_current = Path(LOCAL_DIR) / "models" / "current"
+    if LOCAL_MODE and (local_current / "config.json").exists():
+        return str(local_current)
+
+    if not LOCAL_MODE:
+        model_keys = [key for key in list_keys("models/current") if not key.endswith(".keep")]
+        if model_keys:
+            global _MODEL_TEMP_DIR
+            _MODEL_TEMP_DIR = tempfile.TemporaryDirectory()
+            s3 = boto3.client("s3")
+            for key in model_keys:
+                relative = key.replace("models/current/", "", 1)
+                output = Path(_MODEL_TEMP_DIR.name) / relative
+                output.parent.mkdir(parents=True, exist_ok=True)
+                s3.download_file(BUCKET, key, str(output))
+            return _MODEL_TEMP_DIR.name
+
+    return NER_MODEL
+
+
+MODEL_SOURCE = resolve_inference_model()
+print(f"Loading NER model: {MODEL_SOURCE}")
+ner = hf_pipeline("ner", model=MODEL_SOURCE, aggregation_strategy="simple")
 print("Model loaded [OK]")
 
 

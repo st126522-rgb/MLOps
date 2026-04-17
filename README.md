@@ -7,6 +7,7 @@ This repo is easiest to approach in three stages:
 3. Replace the manual AWS setup with Terraform.
 
 The code now defaults to local mode so you can validate the pipeline before touching cloud infrastructure.
+For the manual cloud setup, use [AWS_MANUAL_ARCHITECTURE_GUIDE.md](/C:/Users/gaurav/OneDrive/Desktop/MLOps/AWS_MANUAL_ARCHITECTURE_GUIDE.md).
 
 ## What the pipeline does
 
@@ -121,7 +122,7 @@ local_data/graphs/dashboard_YYYYMMDD_HHMMSS.html
 The dashboard includes:
 
 - Hot-topic cards ranked by mentions and confidence.
-- Clear type colors for `ORG`, `MISC`, `PER`, and `LOC`.
+- Clear type colors for `ORG`, `MODEL`, `MISC`, `PER`, and `LOC`.
 - Confidence and flagged-span trends.
 - Zoomable, pannable graph panels.
 - Two timeframe sliders for comparing graph state across weeks.
@@ -129,7 +130,7 @@ The dashboard includes:
 - A minimum edge-strength filter based on shared article co-mentions.
 - A display-labels toggle for decluttering dense views.
 - An only-newly-added-nodes toggle for spotting emerging topics.
-- Entity-type highlight filters for `ORG`, `MISC`, `PER`, and `LOC`.
+- Entity-type highlight filters for `ORG`, `MODEL`, `MISC`, `PER`, and `LOC`.
 - Edge hover text explaining which nodes are connected and how often.
 - New, dropped, and rising entities between the selected timeframes.
 

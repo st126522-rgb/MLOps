@@ -2,7 +2,7 @@
 Fetch AI news from RSS feeds and save raw articles to local storage or S3.
 """
 
-import datetime
+from datetime import datetime, timezone
 import hashlib
 
 import feedparser
@@ -33,7 +33,7 @@ def fetch_articles() -> list[dict]:
                         "link": entry.get("link", ""),
                         "source": feed.feed.get("title", feed_url),
                         "published": str(entry.get("published", "")),
-                        "fetched_at": datetime.datetime.now(datetime.UTC).isoformat(),
+                        "fetched_at": datetime.now(timezone.utc).isoformat(),
                     }
                 )
         except Exception as exc:
@@ -44,7 +44,7 @@ def fetch_articles() -> list[dict]:
 
 
 def run() -> None:
-    now = datetime.datetime.now(datetime.UTC)
+    now = datetime.now(timezone.utc)
     batch_id = now.strftime("%Y-%m-%d_%H")
     week = week_key()
 
