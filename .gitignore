@@ -3,6 +3,9 @@ __pycache__/
 .terraform/
 .terraform.lock.hcl
 .venv/
+.env
+lambda_build/
+lambda_ingest.zip
 *.pyc
 *.pyo
 *.pyd

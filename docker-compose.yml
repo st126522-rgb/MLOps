@@ -1,0 +1,13 @@
+services:
+  pipeline:
+    build: .
+    image: ai-news-mlops:latest
+    env_file:
+      - .env
+    volumes:
+      - ./local_data:/app/local_data
+      - hf_cache:/cache/huggingface
+    command: python run_local.py --stage all
+
+volumes:
+  hf_cache:

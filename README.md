@@ -7,7 +7,12 @@ This repo is easiest to approach in three stages:
 3. Replace the manual AWS setup with Terraform.
 
 The code now defaults to local mode so you can validate the pipeline before touching cloud infrastructure.
+For the practical starting sequence, use [MVP_LAUNCHPAD.md](/C:/Users/gaurav/OneDrive/Desktop/MLOps/MVP_LAUNCHPAD.md).
+If Docker, Git, Lambda, or EventBridge are new to you, start with [BEGINNER_DOCKER_AWS_GIT_GUIDE.md](/C:/Users/gaurav/OneDrive/Desktop/MLOps/BEGINNER_DOCKER_AWS_GIT_GUIDE.md).
 For the manual cloud setup, use [AWS_MANUAL_ARCHITECTURE_GUIDE.md](/C:/Users/gaurav/OneDrive/Desktop/MLOps/AWS_MANUAL_ARCHITECTURE_GUIDE.md).
+For the normal AWS Free Tier Docker path, use [AWS_FREE_TIER_DOCKER_TUTORIAL.md](/C:/Users/gaurav/OneDrive/Desktop/MLOps/AWS_FREE_TIER_DOCKER_TUTORIAL.md).
+For the Learner Lab Docker path with Lambda ingest, use [AWS_LEARNER_LAB_DOCKER_TUTORIAL.md](/C:/Users/gaurav/OneDrive/Desktop/MLOps/AWS_LEARNER_LAB_DOCKER_TUTORIAL.md).
+For the laptop -> GitHub -> EC2 workflow, use [GIT_WORKFLOW.md](/C:/Users/gaurav/OneDrive/Desktop/MLOps/GIT_WORKFLOW.md).
 
 ## What the pipeline does
 

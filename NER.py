@@ -23,7 +23,13 @@ def resolve_inference_model() -> str:
         return str(local_current)
 
     if not LOCAL_MODE:
-        model_keys = [key for key in list_keys("models/current") if not key.endswith(".keep")]
+        model_keys = [
+            key for key in list_keys("models/current")
+            if not key.endswith((".keep", "/"))
+        ]
+        if not any(key.endswith("config.json") for key in model_keys):
+            return NER_MODEL
+
         if model_keys:
             global _MODEL_TEMP_DIR
             _MODEL_TEMP_DIR = tempfile.TemporaryDirectory()
