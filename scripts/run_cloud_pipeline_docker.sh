@@ -54,6 +54,8 @@ if [ "$DRIFT_STATUS" -gt 1 ]; then
   exit "$DRIFT_STATUS"
 fi
 
+run_py python publish_drift_metrics.py
+
 aws s3 sync "s3://$S3_BUCKET/raw" "$LOCAL_DATA_DIR/raw" --quiet
 aws s3 sync "s3://$S3_BUCKET/entities" "$LOCAL_DATA_DIR/entities" --quiet
 aws s3 sync "s3://$S3_BUCKET/drift" "$LOCAL_DATA_DIR/drift" --quiet

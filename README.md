@@ -12,6 +12,7 @@ If Docker, Git, Lambda, or EventBridge are new to you, start with [BEGINNER_DOCK
 For the manual cloud setup, use [AWS_MANUAL_ARCHITECTURE_GUIDE.md](/C:/Users/gaurav/OneDrive/Desktop/MLOps/AWS_MANUAL_ARCHITECTURE_GUIDE.md).
 For the normal AWS Free Tier Docker path, use [AWS_FREE_TIER_DOCKER_TUTORIAL.md](/C:/Users/gaurav/OneDrive/Desktop/MLOps/AWS_FREE_TIER_DOCKER_TUTORIAL.md).
 For the Learner Lab Docker path with Lambda ingest, use [AWS_LEARNER_LAB_DOCKER_TUTORIAL.md](/C:/Users/gaurav/OneDrive/Desktop/MLOps/AWS_LEARNER_LAB_DOCKER_TUTORIAL.md).
+For CloudWatch/SNS drift alerts and the human-label retraining loop, use [CLOUDWATCH_SNS_DRIFT_GUIDE.md](/C:/Users/gaurav/OneDrive/Desktop/MLOps/CLOUDWATCH_SNS_DRIFT_GUIDE.md).
 For the laptop -> GitHub -> EC2 workflow, use [GIT_WORKFLOW.md](/C:/Users/gaurav/OneDrive/Desktop/MLOps/GIT_WORKFLOW.md).
 
 ## What the pipeline does

@@ -180,3 +180,20 @@ def test_model_entity_postprocessing_adds_model_type():
     model_names = {item["entity"] for item in merged if item["type"] == "MODEL"}
     assert "GPT-5" in model_names
     assert "Claude 4" in model_names
+
+
+def test_drift_metric_payload_from_report():
+    from publish_drift_metrics import metric_data_from_report
+
+    report = {
+        "metrics": {"mean_confidence": 0.81, "flagged_pct": 0.42},
+        "queue_size": 17,
+        "drift_detected": True,
+    }
+    payload = metric_data_from_report(report)
+    values = {item["MetricName"]: item["Value"] for item in payload}
+
+    assert values["MeanConfidence"] == 0.81
+    assert values["FlaggedSpanPercentage"] == 42.0
+    assert values["LabelQueueSize"] == 17
+    assert values["DriftDetected"] == 1

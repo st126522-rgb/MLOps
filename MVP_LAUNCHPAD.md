@@ -33,6 +33,7 @@ Why this order:
 - Lambda handles only lightweight ingest.
 - EventBridge Scheduler gives the timed trigger.
 - Drift/retraining comes after data is flowing.
+- CloudWatch/SNS is the notification layer; it should tell the human to label, not train directly on unreviewed model guesses.
 
 ## Architecture For Bare-Bones MVP
 
@@ -522,4 +523,3 @@ Skip these for MVP:
 - Terraform.
 
 Add them after the manual MVP works.
-
