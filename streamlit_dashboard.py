@@ -307,9 +307,19 @@ def render_overview_tab(df: pd.DataFrame, payload: dict) -> None:
 
     chart_cols = st.columns([1.15, 0.85])
     with chart_cols[0]:
-        st.plotly_chart(build_trend_figure(payload["trends"]), use_container_width=True, config={"displaylogo": False})
+        st.plotly_chart(
+            build_trend_figure(payload["trends"]),
+            use_container_width=True,
+            config={"displaylogo": False},
+            key="overview_trend_chart",
+        )
     with chart_cols[1]:
-        st.plotly_chart(build_type_figure(df), use_container_width=True, config={"displaylogo": False})
+        st.plotly_chart(
+            build_type_figure(df),
+            use_container_width=True,
+            config={"displaylogo": False},
+            key="overview_type_mix_chart",
+        )
 
     st.subheader("Hot Topics")
     topic_cols = st.columns(3)
@@ -363,6 +373,7 @@ def render_graph_tab(payload: dict) -> None:
             ),
             use_container_width=True,
             config={"displaylogo": False, "scrollZoom": True},
+            key=f"network_left_{left_week}_{min_mentions}_{min_edge}_{labels_on}",
         )
     with graph_cols[1]:
         st.caption(f"Up to {right_week}")
@@ -378,6 +389,7 @@ def render_graph_tab(payload: dict) -> None:
             ),
             use_container_width=True,
             config={"displaylogo": False, "scrollZoom": True},
+            key=f"network_right_{right_week}_{left_week}_{min_mentions}_{min_edge}_{labels_on}_{new_only}",
         )
 
     left_nodes = {node["id"]: node for node in windows[left_index]["nodes"]}
