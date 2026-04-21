@@ -3,6 +3,7 @@
 This is the practical starting point from where we are now.
 The goal is not perfect AWS architecture yet.
 The goal is a working, explainable end-to-end MVP that can later become Terraform.
+For the exact remaining learner-lab tasks before Free Tier and Terraform, see [MVP_CLOSURE_CHECKLIST.md](/C:/Users/gaurav/OneDrive/Desktop/MLOps/MVP_CLOSURE_CHECKLIST.md).
 
 ## The MVP Strategy
 

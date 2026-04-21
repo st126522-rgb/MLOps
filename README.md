@@ -14,6 +14,7 @@ For the normal AWS Free Tier Docker path, use [AWS_FREE_TIER_DOCKER_TUTORIAL.md]
 For the Learner Lab Docker path with Lambda ingest, use [AWS_LEARNER_LAB_DOCKER_TUTORIAL.md](/C:/Users/gaurav/OneDrive/Desktop/MLOps/AWS_LEARNER_LAB_DOCKER_TUTORIAL.md).
 For CloudWatch/SNS drift alerts and the human-label retraining loop, use [CLOUDWATCH_SNS_DRIFT_GUIDE.md](/C:/Users/gaurav/OneDrive/Desktop/MLOps/CLOUDWATCH_SNS_DRIFT_GUIDE.md).
 For the laptop -> GitHub -> EC2 workflow, use [GIT_WORKFLOW.md](/C:/Users/gaurav/OneDrive/Desktop/MLOps/GIT_WORKFLOW.md).
+For the exact learner-lab finish line before Free Tier/Terraform, use [MVP_CLOSURE_CHECKLIST.md](/C:/Users/gaurav/OneDrive/Desktop/MLOps/MVP_CLOSURE_CHECKLIST.md).
 
 ## What the pipeline does
 
@@ -55,6 +56,7 @@ outputs.tf        Terraform outputs
 deploy.yml        GitHub Actions workflow draft
 GIT_WORKFLOW.md   Suggested branch and commit workflow
 scripts/run_retrain_cycle_docker.sh  Docker retrain/eval/promote runner
+verify_current_model.py  Verify whether models/current is actually active
 ```
 
 ## Local setup
