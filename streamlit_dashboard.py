@@ -165,7 +165,8 @@ def load_queue_records(base_dir: str) -> pd.DataFrame:
     df = pd.DataFrame(rows)
     if df.empty:
         return pd.DataFrame(columns=REVIEW_COLUMNS)
-    return df.drop_duplicates(subset=["span_id"]).reindex(columns=REVIEW_COLUMNS)
+    df = df.drop_duplicates(subset=["span_id"]).reindex(columns=REVIEW_COLUMNS).fillna("")
+    return df.astype("object")
 
 
 def load_review_csv(base_dir: str) -> pd.DataFrame:
@@ -173,7 +174,8 @@ def load_review_csv(base_dir: str) -> pd.DataFrame:
     if not review_path.exists():
         return pd.DataFrame(columns=REVIEW_COLUMNS)
     try:
-        return pd.read_csv(review_path).fillna("")
+        df = pd.read_csv(review_path).reindex(columns=REVIEW_COLUMNS).fillna("")
+        return df.astype("object")
     except Exception:
         return pd.DataFrame(columns=REVIEW_COLUMNS)
 
@@ -193,12 +195,21 @@ def merge_queue_and_review(base_dir: str) -> pd.DataFrame:
         return review_df.reindex(columns=REVIEW_COLUMNS)
     if review_df.empty:
         return queue_df
-    merged = queue_df.set_index("span_id")
-    review_df = review_df.set_index("span_id")
-    merged.update(review_df)
-    extra_review = review_df.loc[~review_df.index.isin(merged.index)]
-    combined = pd.concat([merged, extra_review], axis=0).reset_index()
-    return combined.reindex(columns=REVIEW_COLUMNS)
+    merged = queue_df.set_index("span_id").reindex(columns=[col for col in REVIEW_COLUMNS if col != "span_id"]).astype("object")
+    review_df = review_df.set_index("span_id").reindex(columns=[col for col in REVIEW_COLUMNS if col != "span_id"]).astype("object")
+
+    all_ids = merged.index.union(review_df.index)
+    merged = merged.reindex(all_ids, fill_value="")
+    review_df = review_df.reindex(all_ids, fill_value="")
+
+    combined = pd.DataFrame(index=all_ids)
+    for col in [col for col in REVIEW_COLUMNS if col != "span_id"]:
+        queue_col = merged[col].where(merged[col].notna(), "")
+        review_col = review_df[col].where(review_df[col].notna(), "")
+        combined[col] = review_col.where(review_col.astype(str).str.len() > 0, queue_col)
+
+    combined = combined.reset_index().rename(columns={"index": "span_id"})
+    return combined.reindex(columns=REVIEW_COLUMNS).fillna("").astype("object")
 
 
 def pct(value: float) -> str:
