@@ -39,8 +39,16 @@ def stable_split(value: str) -> str:
 def export_review(limit: int | None = None, output: str | None = None) -> Path:
     rows = []
     seen = set()
+    skipped = 0
     for key in sorted(list_keys("label-queue")):
-        item = read_json(key)
+        if not key.endswith(".json"):
+            continue
+        try:
+            item = read_json(key)
+        except Exception as exc:
+            skipped += 1
+            print(f"  [WARN] Skipping unreadable queue item {key}: {exc}")
+            continue
         span_id = item.get("span_id") or Path(key).stem
         if span_id in seen:
             continue
@@ -82,6 +90,8 @@ def export_review(limit: int | None = None, output: str | None = None) -> Path:
         encoding="utf-8",
     )
     print(f"[OK] Exported {len(rows)} review rows -> {output_path}")
+    if skipped:
+        print(f"[WARN] Skipped {skipped} unreadable queue item(s)")
     return output_path
 
 
