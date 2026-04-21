@@ -95,6 +95,8 @@ def flatten_entities(batches: list[dict]) -> pd.DataFrame:
                         "flagged": as_bool(entity.get("flagged")),
                         "article_id": article_id,
                         "article": title,
+                        "article_link": article.get("link", ""),
+                        "article_source": article.get("source", ""),
                         "batch_id": batch_id,
                         "week": week,
                     }
