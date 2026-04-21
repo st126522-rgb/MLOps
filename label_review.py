@@ -27,6 +27,9 @@ REVIEW_COLUMNS = [
     "confidence",
     "context",
     "article_id",
+    "article_title",
+    "article_source",
+    "article_link",
     "week",
 ]
 
@@ -65,6 +68,9 @@ def export_review(limit: int | None = None, output: str | None = None) -> Path:
                 "confidence": item.get("confidence", ""),
                 "context": item.get("context", ""),
                 "article_id": item.get("article_id", ""),
+                "article_title": item.get("article_title", ""),
+                "article_source": item.get("article_source", ""),
+                "article_link": item.get("article_link", ""),
                 "week": item.get("week", ""),
             }
         )

@@ -11,7 +11,7 @@ import sys
 
 import boto3
 
-from config import AWS_REGION, LOCAL_MODE
+from config import AWS_REGION, LABEL_QUEUE_ALERT_SIZE, LOCAL_MODE
 from s3_utils import list_keys, read_json
 
 
@@ -53,6 +53,12 @@ def metric_data_from_report(report: dict) -> list[dict]:
             "MetricName": "DriftDetected",
             "Timestamp": timestamp,
             "Value": 1 if report.get("drift_detected") else 0,
+            "Unit": "Count",
+        },
+        {
+            "MetricName": "LabelQueueReady",
+            "Timestamp": timestamp,
+            "Value": 1 if int(report.get("queue_size", 0)) >= LABEL_QUEUE_ALERT_SIZE else 0,
             "Unit": "Count",
         },
     ]

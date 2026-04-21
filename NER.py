@@ -108,6 +108,9 @@ def process_batch(batch: dict) -> dict:
                         "confidence": entity["confidence"],
                         "context": text[:200],
                         "article_id": article["id"],
+                        "article_title": article.get("title", ""),
+                        "article_link": article.get("link", ""),
+                        "article_source": article.get("source", ""),
                         "week": batch["week"],
                         "status": "pending_label",
                     }
@@ -117,6 +120,8 @@ def process_batch(batch: dict) -> dict:
             {
                 "article_id": article["id"],
                 "title": article["title"],
+                "link": article.get("link", ""),
+                "source": article.get("source", ""),
                 "entities": entities,
             }
         )

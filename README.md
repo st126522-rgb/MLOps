@@ -43,6 +43,7 @@ NER.py            Runs Hugging Face NER on batches
 drift.py          Computes drift metrics from confidence history
 graph.py          Builds graph and dashboard-style HTML outputs
 dashboard.py      Polished local UI for hot topics and graph comparison
+streamlit_dashboard.py  Interactive operator dashboard with review queue
 backfill_model_entities.py  Adds MODEL entities to older local outputs
 eval.py           Runs evaluation and gate logic
 s3_utils.py       Shared storage helpers for local mode and S3
@@ -144,6 +145,28 @@ The dashboard includes:
 - Entity-type highlight filters for `ORG`, `MODEL`, `MISC`, `PER`, and `LOC`.
 - Edge hover text explaining which nodes are connected and how often.
 - New, dropped, and rising entities between the selected timeframes.
+
+## Streamlit Operator Dashboard
+
+For the EC2-hosted operator experience, use Streamlit:
+
+```bash
+streamlit run streamlit_dashboard.py --server.port 8501
+```
+
+Then open:
+
+```text
+http://<EC2_PUBLIC_IP>:8501
+```
+
+This operator dashboard combines:
+
+- hot-topic and drift-friendly overview panels
+- weekly graph comparison
+- a built-in label review queue editor that writes `local_data/review/label_review.csv`
+
+For EC2 access, allow inbound TCP `8501` from your IP in the security group.
 
 ## MODEL Entity Type
 
