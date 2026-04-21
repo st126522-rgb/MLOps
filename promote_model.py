@@ -5,8 +5,8 @@ Promote a passing local candidate model to local models/current.
 import argparse
 import shutil
 
-from config import F1_IMPROVEMENT_MIN
-from s3_utils import key_exists, list_keys, read_json, storage_path, write_json
+from config import BUCKET, F1_IMPROVEMENT_MIN, LOCAL_MODE
+from s3_utils import key_exists, list_keys, read_json, storage_path, upload_directory, write_json
 
 
 def get_current_f1() -> float:
@@ -50,6 +50,9 @@ def promote(force: bool = False) -> None:
     if current_dir.exists():
         shutil.rmtree(current_dir)
     shutil.copytree(candidate_dir, current_dir)
+    if not LOCAL_MODE:
+        uploaded = upload_directory(current_dir, "models/current")
+        print(f"[OK] Uploaded promoted model -> s3://{BUCKET}/models/current ({uploaded} files)")
     write_json("eval", "current_result", {**candidate_result, "model_prefix": "models/current"})
     print(f"[OK] Promoted candidate model -> {current_dir}")
 

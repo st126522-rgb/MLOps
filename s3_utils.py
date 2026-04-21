@@ -5,6 +5,7 @@ Shared storage helpers for local mode and S3.
 import datetime
 import json
 import pathlib
+from pathlib import Path
 
 import boto3
 
@@ -126,6 +127,53 @@ def read_all_json(prefix: str) -> list[dict]:
             except Exception as exc:
                 print(f"  [WARN] Could not read {key}: {exc}")
     return results
+
+
+def download_prefix(prefix: str, destination: str | Path) -> list[Path]:
+    """Download an S3 prefix into a local directory when running in cloud mode."""
+    destination = Path(destination)
+    destination.mkdir(parents=True, exist_ok=True)
+
+    if LOCAL_MODE:
+        return list(destination.rglob("*"))
+
+    downloaded = []
+    for key in list_keys(prefix):
+        if key.endswith(".keep") or key.endswith("/"):
+            continue
+        relative = key.replace(prefix.rstrip("/") + "/", "", 1)
+        output = destination / relative
+        output.parent.mkdir(parents=True, exist_ok=True)
+        _s3().download_file(BUCKET, key, str(output))
+        downloaded.append(output)
+    return downloaded
+
+
+def upload_directory(source_dir: str | Path, prefix: str) -> int:
+    """Upload a local directory tree to S3 when running in cloud mode."""
+    source_dir = Path(source_dir)
+    if not source_dir.exists():
+        return 0
+
+    if LOCAL_MODE:
+        return sum(1 for path in source_dir.rglob("*") if path.is_file())
+
+    uploaded = 0
+    for path in source_dir.rglob("*"):
+        if not path.is_file():
+            continue
+        key = f"{prefix.rstrip('/')}/{path.relative_to(source_dir).as_posix()}"
+        content_type = "application/octet-stream"
+        if path.suffix == ".json":
+            content_type = "application/json"
+        _s3().upload_file(
+            str(path),
+            BUCKET,
+            key,
+            ExtraArgs={"ContentType": content_type},
+        )
+        uploaded += 1
+    return uploaded
 
 
 def today_key() -> str:

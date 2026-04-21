@@ -461,8 +461,7 @@ Why:
 Do this only after label queue has enough items.
 
 ```bash
-aws s3 sync s3://$S3_BUCKET/label-queue local_data/label-queue --quiet
-docker run --rm --env-file .env -v $(pwd)/local_data:/app/local_data ai-news-mlops:latest python label_review.py export --limit 200
+bash scripts/run_retrain_cycle_docker.sh
 ```
 
 Edit:
@@ -474,17 +473,7 @@ local_data/review/label_review.csv
 Then:
 
 ```bash
-docker run --rm --env-file .env -v $(pwd)/local_data:/app/local_data ai-news-mlops:latest python label_review.py build-datasets
-docker run --rm --env-file .env -v $(pwd)/local_data:/app/local_data -v ai_news_hf_cache:/cache/huggingface ai-news-mlops:latest python train.py --epochs 1 --max-samples 100 --overwrite
-docker run --rm --env-file .env -v $(pwd)/local_data:/app/local_data -v ai_news_hf_cache:/cache/huggingface ai-news-mlops:latest python eval.py --model-prefix models/candidate --upload-results --candidate-result
-docker run --rm --env-file .env -v $(pwd)/local_data:/app/local_data -v ai_news_hf_cache:/cache/huggingface ai-news-mlops:latest python eval.py --check-gate
-```
-
-If gate passes:
-
-```bash
-docker run --rm --env-file .env -v $(pwd)/local_data:/app/local_data ai-news-mlops:latest python promote_model.py
-aws s3 sync local_data/models/current s3://$S3_BUCKET/models/current --delete
+SKIP_EXPORT=true bash scripts/run_retrain_cycle_docker.sh
 ```
 
 Why:
@@ -492,6 +481,7 @@ Why:
 - Drift should trigger review/training, not train directly on uncertain predictions.
 - Human review prevents model self-poisoning.
 - F1 gate prevents bad promotion.
+- The retrain script uploads candidate and promoted models to S3 in cloud mode, so future EC2 NER runs can load the promoted model automatically.
 
 ## MVP Acceptance Criteria
 

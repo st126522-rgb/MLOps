@@ -18,8 +18,8 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from transformers import AutoModelForTokenClassification, AutoTokenizer
 
-from config import ENTITY_TYPES, NER_MODEL
-from s3_utils import storage_path
+from config import ENTITY_TYPES, LOCAL_MODE, NER_MODEL
+from s3_utils import key_exists, read_json, storage_path, upload_directory
 
 
 LABELS = ["O"] + [f"{prefix}-{entity_type}" for entity_type in ENTITY_TYPES for prefix in ("B", "I")]
@@ -28,9 +28,12 @@ ID_TO_LABEL = {index: label for label, index in LABEL_TO_ID.items()}
 
 
 def load_samples(path: Path, max_samples: int | None = None) -> list[dict]:
-    if not path.exists():
+    if path.exists():
+        samples = json.loads(path.read_text(encoding="utf-8"))
+    elif not LOCAL_MODE and key_exists("labeled/train_set.json"):
+        samples = read_json("labeled/train_set.json")
+    else:
         raise SystemExit(f"Training set not found: {path}. Run `python label_review.py build-datasets` first.")
-    samples = json.loads(path.read_text(encoding="utf-8"))
     if max_samples:
         samples = samples[:max_samples]
     if not samples:
@@ -143,6 +146,9 @@ def train(args) -> Path:
     }
     (output_dir / "training_metadata.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
     print(f"[OK] Saved candidate model -> {output_dir}")
+    if not LOCAL_MODE:
+        uploaded = upload_directory(output_dir, args.output_prefix)
+        print(f"[OK] Uploaded candidate model to s3://{args.bucket}/{args.output_prefix} ({uploaded} files)")
     return output_dir
 
 
@@ -157,7 +163,12 @@ def main() -> None:
     parser.add_argument("--max-samples", type=int, default=None)
     parser.add_argument("--cpu", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument("--bucket", default=None, help="Optional bucket label for logs when LOCAL_MODE=false.")
     args = parser.parse_args()
+    if args.bucket is None:
+        from config import BUCKET
+
+        args.bucket = BUCKET
     train(args)
 
 

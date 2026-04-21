@@ -30,6 +30,7 @@ eval.py    ->  F1 metrics for the current or candidate model
 label_review.py -> export/import human-reviewed labels
 train.py    -> fine-tune a local candidate model
 promote_model.py -> promote a passing candidate to current
+scripts/run_retrain_cycle_docker.sh -> one-command reviewed-label retrain flow
 ```
 
 ## Repository layout
@@ -53,6 +54,7 @@ variables.tf      Terraform inputs
 outputs.tf        Terraform outputs
 deploy.yml        GitHub Actions workflow draft
 GIT_WORKFLOW.md   Suggested branch and commit workflow
+scripts/run_retrain_cycle_docker.sh  Docker retrain/eval/promote runner
 ```
 
 ## Local setup
@@ -238,6 +240,30 @@ local_data/models/current/
 ```
 
 At this point the local loop is complete: ingest, NER, drift, graph, label review, train, eval, and promote all run before AWS.
+
+### Optional one-command Docker retrain flow
+
+After Docker is set up, you can run the reviewed-label loop with one operator script.
+
+First pass, export the CSV and stop for review:
+
+```bash
+bash scripts/run_retrain_cycle_docker.sh
+```
+
+Then edit:
+
+```text
+local_data/review/label_review.csv
+```
+
+Then resume the actual train/eval/promote cycle:
+
+```bash
+SKIP_EXPORT=true bash scripts/run_retrain_cycle_docker.sh
+```
+
+In cloud mode, this script now uploads `models/candidate` and promoted `models/current` back to S3 so future EC2 runs can load the promoted model automatically.
 
 ## Stage 2: Manual AWS architecture
 
