@@ -145,6 +145,19 @@ Check:
 - CloudWatch metric updates
 - SNS email when drift is triggered
 
+For scheduled EC2 runs with persistent logs:
+
+```bash
+RUN_INGEST_IN_EC2=false bash scripts/run_cloud_pipeline_logged.sh
+```
+
+This writes:
+
+- timestamped logs under `logs/`
+- a latest log copy
+- a last-status file
+- uploaded copies under `s3://$S3_BUCKET/logs/ec2-processing/`
+
 ### B. Human review cycle
 
 Export:

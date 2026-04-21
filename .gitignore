@@ -12,6 +12,7 @@ lambda_ingest.zip
 *.html
 eval_results.json
 local_data/
+logs/
 terraform.tfstate
 terraform.tfstate.backup
 tfplan

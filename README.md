@@ -56,6 +56,7 @@ outputs.tf        Terraform outputs
 deploy.yml        GitHub Actions workflow draft
 GIT_WORKFLOW.md   Suggested branch and commit workflow
 scripts/run_retrain_cycle_docker.sh  Docker retrain/eval/promote runner
+scripts/run_cloud_pipeline_logged.sh  Scheduled EC2 pipeline with log persistence
 verify_current_model.py  Verify whether models/current is actually active
 ```
 
