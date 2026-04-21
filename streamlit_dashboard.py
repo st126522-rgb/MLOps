@@ -1006,8 +1006,19 @@ def render_graph_tab(df: pd.DataFrame, edges: pd.DataFrame, payload: dict) -> No
     filter_cols = st.columns([1.1, 1.1, 1.0, 1.0])
     active_types = filter_cols[0].multiselect("Entity types", list(TYPE_COLORS.keys()), default=list(TYPE_COLORS.keys()))
     first_seen_range = filter_cols[1].select_slider("First seen week range", options=weeks, value=(weeks[0], weeks[-1]))
-    min_mentions = int(filter_cols[2].slider("Minimum node size", min_value=1, max_value=max_mentions, value=1))
-    min_edge = int(filter_cols[3].slider("Minimum edge strength", min_value=1, max_value=max_edge, value=1))
+    if max_mentions <= 1:
+        filter_cols[2].caption("Minimum node size")
+        filter_cols[2].info("Fixed at 1 for current data")
+        min_mentions = 1
+    else:
+        min_mentions = int(filter_cols[2].slider("Minimum node size", min_value=1, max_value=max_mentions, value=1))
+
+    if max_edge <= 1:
+        filter_cols[3].caption("Minimum edge strength")
+        filter_cols[3].info("Fixed at 1 for current data")
+        min_edge = 1
+    else:
+        min_edge = int(filter_cols[3].slider("Minimum edge strength", min_value=1, max_value=max_edge, value=1))
 
     option_cols = st.columns([1, 1, 1, 1, 1, 1])
     node_cap = int(option_cols[0].slider("Node cap", min_value=20, max_value=max(20, min(240, len(comparison_window["nodes"]) or 20)), value=min(120, max(20, len(comparison_window["nodes"]) or 20))))
