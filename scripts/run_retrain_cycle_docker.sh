@@ -34,10 +34,11 @@ run_py() {
     "$IMAGE_NAME" "$@"
 }
 
-echo "[RETRAIN] exporting label review CSV"
-run_py python label_review.py export --limit "$REVIEW_LIMIT"
+if [ "${SKIP_EXPORT:-false}" != "true" ]; then
+  echo "[RETRAIN] exporting label review CSV"
+  run_py python label_review.py export --limit "$REVIEW_LIMIT"
 
-cat <<EOF
+  cat <<EOF
 
 [ACTION REQUIRED]
 Review this file before continuing:
@@ -51,8 +52,6 @@ Mark rows as:
 Then re-run this script with:
   SKIP_EXPORT=true bash scripts/run_retrain_cycle_docker.sh
 EOF
-
-if [ "${SKIP_EXPORT:-false}" != "true" ]; then
   exit 0
 fi
 
