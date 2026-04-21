@@ -21,10 +21,16 @@ def download_model_from_s3(prefix: str, local_dir: str) -> None:
         return
 
     s3 = boto3.client("s3")
-    keys = [key for key in list_keys(prefix) if not key.endswith(".keep")]
+    keys = [
+        key for key in list_keys(prefix)
+        if not key.endswith((".keep", "/"))
+    ]
     for key in keys:
-        filename = key.split("/")[-1]
-        local_path = os.path.join(local_dir, filename)
+        relative = key.replace(prefix.rstrip("/") + "/", "", 1)
+        if not relative:
+            continue
+        local_path = os.path.join(local_dir, relative)
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
         s3.download_file(BUCKET, key, local_path)
     print(f"  Downloaded {len(keys)} files from s3://{BUCKET}/{prefix}")
 
