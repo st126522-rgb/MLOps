@@ -178,7 +178,10 @@ def main() -> None:
     if args.bucket:
         os.environ["S3_BUCKET"] = args.bucket
     elif not LOCAL_MODE:
-        parser.error("--bucket is required when LOCAL_MODE=false")
+        if BUCKET:
+            os.environ["S3_BUCKET"] = BUCKET
+        else:
+            parser.error("--bucket is required when LOCAL_MODE=false")
 
     if args.check_gate:
         candidate_result = read_json("eval/candidate_result.json") if key_exists("eval/candidate_result.json") else None
