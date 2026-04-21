@@ -151,6 +151,9 @@ def inject_styles() -> None:
         .stTabs [aria-selected="true"] {
             color: #102033 !important;
         }
+        .stMarkdown, .stCaption, .stText, .stMetric, .stMetric label, label, p, span, div {
+            color: #102033;
+        }
         .stButton button, .stDownloadButton button {
             border-radius: 12px;
             border: 1px solid #cdd8e4;
@@ -162,6 +165,17 @@ def inject_styles() -> None:
             border-color: #0b66d0;
             color: #0b66d0;
             background: #f7fbff;
+        }
+        .stDataFrame a, .stTable a {
+            color: #0f4aa3 !important;
+        }
+        .stDataFrame a:hover, .stTable a:hover {
+            color: #0b66d0 !important;
+        }
+        [data-testid="stWidgetLabel"] p,
+        [data-testid="stMarkdownContainer"] p,
+        [data-testid="stSidebar"] * {
+            color: #102033 !important;
         }
         </style>
         """,
@@ -1005,7 +1019,12 @@ def render_graph_tab(df: pd.DataFrame, edges: pd.DataFrame, payload: dict) -> No
 
     filter_cols = st.columns([1.1, 1.1, 1.0, 1.0])
     active_types = filter_cols[0].multiselect("Entity types", list(TYPE_COLORS.keys()), default=list(TYPE_COLORS.keys()))
-    first_seen_range = filter_cols[1].select_slider("First seen week range", options=weeks, value=(weeks[0], weeks[-1]))
+    if len(weeks) <= 1:
+        filter_cols[1].caption("First seen week range")
+        filter_cols[1].info(f"Fixed at {weeks[0]}")
+        first_seen_range = (weeks[0], weeks[0])
+    else:
+        first_seen_range = filter_cols[1].select_slider("First seen week range", options=weeks, value=(weeks[0], weeks[-1]))
     if max_mentions <= 1:
         filter_cols[2].caption("Minimum node size")
         filter_cols[2].info("Fixed at 1 for current data")
@@ -1021,7 +1040,14 @@ def render_graph_tab(df: pd.DataFrame, edges: pd.DataFrame, payload: dict) -> No
         min_edge = int(filter_cols[3].slider("Minimum edge strength", min_value=1, max_value=max_edge, value=1))
 
     option_cols = st.columns([1, 1, 1, 1, 1, 1])
-    node_cap = int(option_cols[0].slider("Node cap", min_value=20, max_value=max(20, min(240, len(comparison_window["nodes"]) or 20)), value=min(120, max(20, len(comparison_window["nodes"]) or 20))))
+    max_node_cap = max(20, min(240, len(comparison_window["nodes"]) or 20))
+    default_node_cap = min(120, max_node_cap)
+    if max_node_cap <= 20:
+        option_cols[0].caption("Node cap")
+        option_cols[0].info("Fixed at 20 for current data")
+        node_cap = 20
+    else:
+        node_cap = int(option_cols[0].slider("Node cap", min_value=20, max_value=max_node_cap, value=default_node_cap))
     show_new_only = option_cols[1].toggle("Only new nodes", value=False)
     show_dropped_nodes = option_cols[2].toggle("Show historical-only nodes", value=True)
     show_historical_edges = option_cols[3].toggle("Show historical-only edges", value=True)
