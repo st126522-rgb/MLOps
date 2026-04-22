@@ -5,6 +5,7 @@ numpy
 pandas
 plotly
 pytest
+scipy
 streamlit
 torch
 transformers
