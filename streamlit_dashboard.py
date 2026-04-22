@@ -7,6 +7,7 @@ Run locally or on EC2:
 
 from __future__ import annotations
 
+import datetime
 import json
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -27,6 +28,7 @@ from dashboard import (
     load_batches,
 )
 from label_review import REVIEW_COLUMNS, stable_split
+from s3_utils import write_bytes, write_json
 
 
 REVIEW_BODY_COLUMNS = [column for column in REVIEW_COLUMNS if column != "span_id"]
@@ -495,6 +497,36 @@ def save_review_csv(base_dir: str, df: pd.DataFrame) -> Path:
     output = review_dir / "label_review.csv"
     ensure_review_df(df).to_csv(output, index=False)
     return output
+
+
+def publish_review_csv(df: pd.DataFrame) -> str:
+    csv_bytes = ensure_review_df(df).to_csv(index=False).encode("utf-8")
+    return write_bytes("review", "label_review.csv", csv_bytes, content_type="text/csv")
+
+
+def create_retrain_request(df: pd.DataFrame) -> str:
+    review_df = ensure_review_df(df)
+    accepted = int(review_df["status"].astype(str).str.lower().eq("accept").sum())
+    corrected = int(review_df["status"].astype(str).str.lower().eq("correct").sum())
+    rejected = int(review_df["status"].astype(str).str.lower().eq("reject").sum())
+    pending = int(review_df["status"].astype(str).str.lower().eq("pending").sum())
+    timestamp = datetime.datetime.now(datetime.UTC).strftime("%Y%m%d_%H%M%S")
+    return write_json(
+        "control/retrain_requests",
+        f"retrain_request_{timestamp}",
+        {
+            "requested_at": datetime.datetime.now(datetime.UTC).isoformat(),
+            "source": "streamlit_dashboard",
+            "review_file": "review/label_review.csv",
+            "status_counts": {
+                "accept": accepted,
+                "correct": corrected,
+                "reject": rejected,
+                "pending": pending,
+            },
+            "ready_label_count": accepted + corrected,
+        },
+    )
 
 
 def validate_review_rows(df: pd.DataFrame) -> list[str]:
@@ -1487,8 +1519,14 @@ def render_review_tab(base_dir: str, article_metadata: dict[str, dict]) -> None:
             uploaded_df = ensure_review_df(uploaded_df)
             upload_cols[1].success(f"Loaded {len(uploaded_df)} rows")
             if st.button("Replace review CSV with uploaded file"):
-                output = save_review_csv(base_dir, uploaded_df)
-                st.success(f"Uploaded review file saved to {output}. Refresh the page to see the updated table.")
+                upload_errors = validate_review_rows(uploaded_df)
+                if upload_errors:
+                    st.error("Uploaded CSV has validation issues and was not saved.")
+                    for message in upload_errors[:10]:
+                        st.caption(f"- {message}")
+                else:
+                    output = save_review_csv(base_dir, uploaded_df)
+                    st.success(f"Uploaded review file saved to {output}. Refresh the page to see the updated table.")
         except Exception as exc:
             upload_cols[1].error(f"Invalid CSV: {exc}")
 
@@ -1537,7 +1575,7 @@ def render_review_tab(base_dir: str, article_metadata: dict[str, dict]) -> None:
     else:
         st.success("Review table passed validation.")
 
-    action_cols = st.columns([1, 1, 1, 2])
+    action_cols = st.columns([1.1, 1.1, 1.15, 1, 1.6])
     if action_cols[0].button("Save review CSV", type="primary"):
         if review_errors:
             st.error("Cannot save until validation errors are fixed.")
@@ -1546,13 +1584,38 @@ def render_review_tab(base_dir: str, article_metadata: dict[str, dict]) -> None:
             saved_path = save_review_csv(base_dir, saved_df)
             st.success(f"Saved review file to {saved_path}")
 
-    action_cols[1].download_button(
+    if action_cols[1].button("Publish review CSV to S3"):
+        if review_errors:
+            st.error("Cannot publish until validation errors are fixed.")
+        else:
+            saved_df = overlay_review_frames(df, edited)
+            save_review_csv(base_dir, saved_df)
+            review_key = publish_review_csv(saved_df)
+            st.success(f"Published reviewed CSV to {review_key}")
+
+    if action_cols[2].button("Request retrain"):
+        if review_errors:
+            st.error("Cannot request retrain until validation errors are fixed.")
+        else:
+            saved_df = overlay_review_frames(df, edited)
+            accepted_ready = int(saved_df["status"].astype(str).str.lower().isin(["accept", "correct"]).sum())
+            if accepted_ready == 0:
+                st.error("No accepted or corrected rows are ready for retraining yet.")
+            else:
+                save_review_csv(base_dir, saved_df)
+                review_key = publish_review_csv(saved_df)
+                request_key = create_retrain_request(saved_df)
+                st.success(
+                    f"Retrain requested. Review file published to {review_key} and trigger marker created at {request_key}."
+                )
+
+    action_cols[3].download_button(
         "Download full review CSV",
         data=ensure_review_df(df).to_csv(index=False).encode("utf-8"),
         file_name="label_review.csv",
         mime="text/csv",
     )
-    action_cols[2].download_button(
+    action_cols[4].download_button(
         "Download filtered CSV",
         data=ensure_review_df(edited).to_csv(index=False).encode("utf-8"),
         file_name="label_review_filtered.csv",
