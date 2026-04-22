@@ -49,12 +49,21 @@ def inject_styles() -> None:
     st.markdown(
         """
         <style>
+        :root {
+            --ink-strong: #102033;
+            --ink-soft: #526276;
+            --panel-bg: rgba(255,255,255,0.88);
+            --panel-border: rgba(209, 219, 232, 0.92);
+            --panel-shadow: 0 18px 45px rgba(46,63,86,0.10);
+            --accent-blue: #0b66d0;
+            --accent-cyan: #0f766e;
+        }
         .stApp {
             background:
                 radial-gradient(circle at top left, rgba(245, 158, 11, 0.10), transparent 28rem),
                 radial-gradient(circle at 92% 6%, rgba(37, 99, 235, 0.14), transparent 24rem),
                 linear-gradient(135deg, #f5efe5 0%, #ebf3f8 48%, #f6ecde 100%);
-            color: #102033;
+            color: var(--ink-strong);
         }
         .block-container {
             max-width: 1580px;
@@ -75,17 +84,17 @@ def inject_styles() -> None:
             font-size: 3rem;
             line-height: 0.95;
             letter-spacing: -0.05em;
-            color: #102033;
+            color: var(--ink-strong);
         }
         .hero p {
             margin: 0.85rem 0 0 0;
-            color: #526276;
+            color: var(--ink-soft);
             font-size: 1rem;
             line-height: 1.6;
             max-width: 980px;
         }
         .metric-card {
-            background: rgba(255,255,255,0.86);
+            background: var(--panel-bg);
             border: 1px solid rgba(220, 229, 239, 0.88);
             border-radius: 22px;
             padding: 1rem 1.1rem;
@@ -99,10 +108,59 @@ def inject_styles() -> None:
             font-weight: 700;
         }
         .metric-card .value {
-            color: #102033;
+            color: var(--ink-strong);
             font-size: 2rem;
             font-weight: 800;
             margin-top: .25rem;
+        }
+        .panel-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 24px;
+            padding: 1rem 1.1rem;
+            box-shadow: var(--panel-shadow);
+            margin-bottom: 1rem;
+        }
+        .panel-card h3,
+        .panel-card h4,
+        .panel-card p,
+        .panel-card span,
+        .panel-card label {
+            color: var(--ink-strong) !important;
+        }
+        .panel-kicker {
+            color: #62748a;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            font-size: .76rem;
+            font-weight: 800;
+            margin-bottom: .35rem;
+        }
+        .panel-title {
+            color: var(--ink-strong);
+            font-size: 1.25rem;
+            font-weight: 800;
+            margin: 0;
+        }
+        .panel-body {
+            color: var(--ink-soft);
+            font-size: .95rem;
+            line-height: 1.55;
+            margin-top: .45rem;
+        }
+        .viz-shell {
+            background: rgba(255,255,255,0.84);
+            border: 1px solid rgba(209, 219, 232, 0.92);
+            border-radius: 28px;
+            padding: .9rem 1rem .5rem 1rem;
+            box-shadow: 0 22px 54px rgba(46,63,86,0.12);
+            margin-bottom: 1rem;
+        }
+        .mini-note {
+            color: var(--ink-soft);
+            font-size: .88rem;
+            line-height: 1.45;
+            margin-top: .5rem;
         }
         .topic-card {
             background: rgba(255,255,255,0.80);
@@ -113,7 +171,7 @@ def inject_styles() -> None:
             box-shadow: 0 8px 24px rgba(46,63,86,0.05);
         }
         .topic-title {
-            color: #102033;
+            color: var(--ink-strong);
             font-weight: 800;
         }
         .topic-meta {
@@ -142,28 +200,28 @@ def inject_styles() -> None:
             color: #0f4aa3 !important;
         }
         a:hover {
-            color: #0b66d0 !important;
+            color: var(--accent-blue) !important;
         }
         .stTabs [data-baseweb="tab"] {
             color: #31445c;
             font-weight: 700;
         }
         .stTabs [aria-selected="true"] {
-            color: #102033 !important;
+            color: var(--ink-strong) !important;
         }
         .stMarkdown, .stCaption, .stText, .stMetric, .stMetric label, label, p, span, div {
-            color: #102033;
+            color: var(--ink-strong);
         }
         .stButton button, .stDownloadButton button {
             border-radius: 12px;
             border: 1px solid #cdd8e4;
-            color: #102033;
+            color: var(--ink-strong);
             background: rgba(255,255,255,0.88);
             font-weight: 700;
         }
         .stButton button:hover, .stDownloadButton button:hover {
-            border-color: #0b66d0;
-            color: #0b66d0;
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
             background: #f7fbff;
         }
         .stDataFrame a, .stTable a {
@@ -175,7 +233,31 @@ def inject_styles() -> None:
         [data-testid="stWidgetLabel"] p,
         [data-testid="stMarkdownContainer"] p,
         [data-testid="stSidebar"] * {
-            color: #102033 !important;
+            color: var(--ink-strong) !important;
+        }
+        [data-testid="stSidebar"] {
+            background: rgba(255,255,255,0.68);
+        }
+        [data-testid="stSelectbox"] label,
+        [data-testid="stMultiSelect"] label,
+        [data-testid="stSlider"] label,
+        [data-testid="stToggle"] label,
+        [data-testid="stRadio"] label {
+            color: var(--ink-strong) !important;
+            font-weight: 700 !important;
+        }
+        [data-testid="stMetricValue"],
+        [data-testid="stMetricLabel"] {
+            color: var(--ink-strong) !important;
+        }
+        .stMarkdown code, .stCode, code {
+            color: #8b1e3f;
+        }
+        .streamlit-expanderHeader {
+            color: var(--ink-strong) !important;
+        }
+        .js-plotly-plot .plotly .main-svg {
+            border-radius: 18px;
         }
         </style>
         """,
@@ -243,6 +325,20 @@ def overlay_review_frames(base_df: pd.DataFrame, incoming_df: pd.DataFrame) -> p
 def type_pill(entity_type: str) -> str:
     color = TYPE_COLORS.get(entity_type, "#64748B")
     return f"<span class='pill' style='background:{color}'>{entity_type}</span>"
+
+
+def panel_header(kicker: str, title: str, body: str = "") -> None:
+    body_html = f"<div class='panel-body'>{body}</div>" if body else ""
+    st.markdown(
+        f"""
+        <div class="panel-card">
+          <div class="panel-kicker">{kicker}</div>
+          <div class="panel-title">{title}</div>
+          {body_html}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 @st.cache_data(show_spinner=False)
@@ -998,11 +1094,19 @@ def render_graph_tab(df: pd.DataFrame, edges: pd.DataFrame, payload: dict) -> No
     positions = collect_positions(payload)
     week_order = {week: index for index, week in enumerate(weeks)}
 
-    header_cols = st.columns([1.1, 1.1, 1.2, 0.9])
-    baseline_week = header_cols[0].selectbox("Baseline week", weeks, index=0)
-    comparison_week = header_cols[1].selectbox("Comparison week", weeks, index=len(weeks) - 1)
-    graph_mode = header_cols[2].radio("Graph view", ["Overlay compare", "Side-by-side"], horizontal=True)
-    labels_on = header_cols[3].toggle("Display labels", value=True)
+    main_col, control_col = st.columns([7, 3], gap="large")
+
+    with control_col:
+        panel_header(
+            "Control rail",
+            "Tune the graph",
+            "Use the right rail to filter noise, isolate neighborhoods, and compare earlier versus later entity structure.",
+        )
+
+        baseline_week = st.selectbox("Baseline week", weeks, index=0)
+        comparison_week = st.selectbox("Comparison week", weeks, index=len(weeks) - 1)
+        graph_mode = st.radio("Graph view", ["Overlay compare", "Side-by-side"], horizontal=False)
+        labels_on = st.toggle("Display labels", value=True)
 
     if week_order[baseline_week] > week_order[comparison_week]:
         st.warning("Baseline week cannot be later than comparison week. I am using the comparison week for both views.")
@@ -1017,42 +1121,41 @@ def render_graph_tab(df: pd.DataFrame, edges: pd.DataFrame, payload: dict) -> No
     max_mentions = max(1, int(df.groupby("entity").size().max())) if not df.empty else 1
     max_edge = max(1, int(edges["weight"].max())) if not edges.empty else 1
 
-    filter_cols = st.columns([1.1, 1.1, 1.0, 1.0])
-    active_types = filter_cols[0].multiselect("Entity types", list(TYPE_COLORS.keys()), default=list(TYPE_COLORS.keys()))
-    if len(weeks) <= 1:
-        filter_cols[1].caption("First seen week range")
-        filter_cols[1].info(f"Fixed at {weeks[0]}")
-        first_seen_range = (weeks[0], weeks[0])
-    else:
-        first_seen_range = filter_cols[1].select_slider("First seen week range", options=weeks, value=(weeks[0], weeks[-1]))
-    if max_mentions <= 1:
-        filter_cols[2].caption("Minimum node size")
-        filter_cols[2].info("Fixed at 1 for current data")
-        min_mentions = 1
-    else:
-        min_mentions = int(filter_cols[2].slider("Minimum node size", min_value=1, max_value=max_mentions, value=1))
+    with control_col:
+        active_types = st.multiselect("Entity types", list(TYPE_COLORS.keys()), default=list(TYPE_COLORS.keys()))
+        if len(weeks) <= 1:
+            st.caption("First seen week range")
+            st.info(f"Fixed at {weeks[0]}")
+            first_seen_range = (weeks[0], weeks[0])
+        else:
+            first_seen_range = st.select_slider("First seen week range", options=weeks, value=(weeks[0], weeks[-1]))
+        if max_mentions <= 1:
+            st.caption("Minimum node size")
+            st.info("Fixed at 1 for current data")
+            min_mentions = 1
+        else:
+            min_mentions = int(st.slider("Minimum node size", min_value=1, max_value=max_mentions, value=1))
 
-    if max_edge <= 1:
-        filter_cols[3].caption("Minimum edge strength")
-        filter_cols[3].info("Fixed at 1 for current data")
-        min_edge = 1
-    else:
-        min_edge = int(filter_cols[3].slider("Minimum edge strength", min_value=1, max_value=max_edge, value=1))
+        if max_edge <= 1:
+            st.caption("Minimum edge strength")
+            st.info("Fixed at 1 for current data")
+            min_edge = 1
+        else:
+            min_edge = int(st.slider("Minimum edge strength", min_value=1, max_value=max_edge, value=1))
 
-    option_cols = st.columns([1, 1, 1, 1, 1, 1])
-    max_node_cap = max(20, min(240, len(comparison_window["nodes"]) or 20))
-    default_node_cap = min(120, max_node_cap)
-    if max_node_cap <= 20:
-        option_cols[0].caption("Node cap")
-        option_cols[0].info("Fixed at 20 for current data")
-        node_cap = 20
-    else:
-        node_cap = int(option_cols[0].slider("Node cap", min_value=20, max_value=max_node_cap, value=default_node_cap))
-    show_new_only = option_cols[1].toggle("Only new nodes", value=False)
-    show_dropped_nodes = option_cols[2].toggle("Show historical-only nodes", value=True)
-    show_historical_edges = option_cols[3].toggle("Show historical-only edges", value=True)
-    show_isolated_nodes = option_cols[4].toggle("Show isolated nodes", value=False)
-    focus_neighbors_only = option_cols[5].toggle("Focus mode hides unrelated nodes", value=False)
+        max_node_cap = max(20, min(240, len(comparison_window["nodes"]) or 20))
+        default_node_cap = min(120, max_node_cap)
+        if max_node_cap <= 20:
+            st.caption("Node cap")
+            st.info("Fixed at 20 for current data")
+            node_cap = 20
+        else:
+            node_cap = int(st.slider("Node cap", min_value=20, max_value=max_node_cap, value=default_node_cap))
+        show_new_only = st.toggle("Only new nodes", value=False)
+        show_dropped_nodes = st.toggle("Show historical-only nodes", value=True)
+        show_historical_edges = st.toggle("Show historical-only edges", value=True)
+        show_isolated_nodes = st.toggle("Show isolated nodes", value=False)
+        focus_neighbors_only = st.toggle("Focus mode hides unrelated nodes", value=False)
 
     focus_candidates = sorted(
         {
@@ -1066,96 +1169,99 @@ def render_graph_tab(df: pd.DataFrame, edges: pd.DataFrame, payload: dict) -> No
             if node["type"] in active_types
         }
     )
-    focus_entity = st.selectbox("Focus entity", [""] + focus_candidates, index=0, help="Use this to spotlight one node and its immediate neighborhood.")
-
-    st.markdown(
-        """
-        <div class="analysis-note">
-          Overlay mode is the main analysis view. Bright nodes are new in the comparison window, muted colored nodes persisted from the baseline,
-          and gray nodes are historical-only. Use the focus entity control to isolate a neighborhood and make dense regions easier to read.
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    if graph_mode == "Overlay compare":
-        figure, summary = build_overlay_graph_figure(
-            baseline_window=baseline_window,
-            comparison_window=comparison_window,
-            active_types=active_types,
-            min_mentions=min_mentions,
-            min_edge=min_edge,
-            labels_on=labels_on,
-            show_new_only=show_new_only,
-            show_historical_edges=show_historical_edges,
-            show_dropped_nodes=show_dropped_nodes,
-            show_isolated_nodes=show_isolated_nodes,
-            node_cap=node_cap,
-            first_seen_start=first_seen_range[0],
-            first_seen_end=first_seen_range[1],
-            week_order=week_order,
-            focus_entity=focus_entity,
-            focus_neighbors_only=focus_neighbors_only,
-        )
-        st.plotly_chart(
-            figure,
-            use_container_width=True,
-            config={"displaylogo": False, "scrollZoom": True},
-            key=f"overlay_graph_{baseline_week}_{comparison_week}_{min_mentions}_{min_edge}_{labels_on}_{focus_entity}_{show_new_only}",
+    with control_col:
+        focus_entity = st.selectbox("Focus entity", [""] + focus_candidates, index=0, help="Use this to spotlight one node and its immediate neighborhood.")
+        st.markdown(
+            """
+            <div class="mini-note">
+              Overlay mode is the primary analysis view. Bright nodes are new in the comparison window, muted colored nodes persisted from the baseline,
+              and gray nodes are historical-only.
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
 
-        summary_cols = st.columns(4)
-        summary_cols[0].metric("New nodes", summary["new_count"])
-        summary_cols[1].metric("Persistent nodes", summary["persistent_count"])
-        summary_cols[2].metric("Historical-only nodes", summary["historical_count"])
-        summary_cols[3].metric("Focused neighbors", summary["focus_neighbors"])
-
-        with st.expander("Graph legend and reading guide", expanded=False):
-            for key, value in summary["legend"].items():
-                st.markdown(f"- **{key}**: {value}")
-
-    else:
-        graph_cols = st.columns(2)
-        with graph_cols[0]:
-            st.caption(f"Up to {baseline_week}")
+    with main_col:
+        st.markdown("<div class='viz-shell'>", unsafe_allow_html=True)
+        if graph_mode == "Overlay compare":
+            figure, summary = build_overlay_graph_figure(
+                baseline_window=baseline_window,
+                comparison_window=comparison_window,
+                active_types=active_types,
+                min_mentions=min_mentions,
+                min_edge=min_edge,
+                labels_on=labels_on,
+                show_new_only=show_new_only,
+                show_historical_edges=show_historical_edges,
+                show_dropped_nodes=show_dropped_nodes,
+                show_isolated_nodes=show_isolated_nodes,
+                node_cap=node_cap,
+                first_seen_start=first_seen_range[0],
+                first_seen_end=first_seen_range[1],
+                week_order=week_order,
+                focus_entity=focus_entity,
+                focus_neighbors_only=focus_neighbors_only,
+            )
             st.plotly_chart(
-                build_single_window_figure(
-                    baseline_window,
-                    active_types=active_types,
-                    min_mentions=min_mentions,
-                    min_edge=min_edge,
-                    labels_on=labels_on,
-                    node_cap=node_cap,
-                    first_seen_start=first_seen_range[0],
-                    first_seen_end=first_seen_range[1],
-                    week_order=week_order,
-                    focus_entity=focus_entity,
-                    focus_neighbors_only=focus_neighbors_only,
-                ),
+                figure,
                 use_container_width=True,
                 config={"displaylogo": False, "scrollZoom": True},
-                key=f"network_left_{baseline_week}_{min_mentions}_{min_edge}_{labels_on}_{focus_entity}",
+                key=f"overlay_graph_{baseline_week}_{comparison_week}_{min_mentions}_{min_edge}_{labels_on}_{focus_entity}_{show_new_only}",
             )
-        with graph_cols[1]:
-            st.caption(f"Up to {comparison_week}")
-            st.plotly_chart(
-                build_single_window_figure(
-                    comparison_window,
-                    active_types=active_types,
-                    min_mentions=min_mentions,
-                    min_edge=min_edge,
-                    labels_on=labels_on,
-                    node_cap=node_cap,
-                    first_seen_start=first_seen_range[0],
-                    first_seen_end=first_seen_range[1],
-                    week_order=week_order,
-                    focus_entity=focus_entity,
-                    focus_neighbors_only=focus_neighbors_only,
-                ),
-                use_container_width=True,
-                config={"displaylogo": False, "scrollZoom": True},
-                key=f"network_right_{comparison_week}_{min_mentions}_{min_edge}_{labels_on}_{focus_entity}",
-            )
+
+            summary_cols = st.columns(4)
+            summary_cols[0].metric("New nodes", summary["new_count"])
+            summary_cols[1].metric("Persistent nodes", summary["persistent_count"])
+            summary_cols[2].metric("Historical-only nodes", summary["historical_count"])
+            summary_cols[3].metric("Focused neighbors", summary["focus_neighbors"])
+
+            with st.expander("Graph legend and reading guide", expanded=False):
+                for key, value in summary["legend"].items():
+                    st.markdown(f"- **{key}**: {value}")
+
+        else:
+            graph_cols = st.columns(2)
+            with graph_cols[0]:
+                st.caption(f"Up to {baseline_week}")
+                st.plotly_chart(
+                    build_single_window_figure(
+                        baseline_window,
+                        active_types=active_types,
+                        min_mentions=min_mentions,
+                        min_edge=min_edge,
+                        labels_on=labels_on,
+                        node_cap=node_cap,
+                        first_seen_start=first_seen_range[0],
+                        first_seen_end=first_seen_range[1],
+                        week_order=week_order,
+                        focus_entity=focus_entity,
+                        focus_neighbors_only=focus_neighbors_only,
+                    ),
+                    use_container_width=True,
+                    config={"displaylogo": False, "scrollZoom": True},
+                    key=f"network_left_{baseline_week}_{min_mentions}_{min_edge}_{labels_on}_{focus_entity}",
+                )
+            with graph_cols[1]:
+                st.caption(f"Up to {comparison_week}")
+                st.plotly_chart(
+                    build_single_window_figure(
+                        comparison_window,
+                        active_types=active_types,
+                        min_mentions=min_mentions,
+                        min_edge=min_edge,
+                        labels_on=labels_on,
+                        node_cap=node_cap,
+                        first_seen_start=first_seen_range[0],
+                        first_seen_end=first_seen_range[1],
+                        week_order=week_order,
+                        focus_entity=focus_entity,
+                        focus_neighbors_only=focus_neighbors_only,
+                    ),
+                    use_container_width=True,
+                    config={"displaylogo": False, "scrollZoom": True},
+                    key=f"network_right_{comparison_week}_{min_mentions}_{min_edge}_{labels_on}_{focus_entity}",
+                )
+        st.markdown("</div>", unsafe_allow_html=True)
 
     left_nodes = {node["id"]: node for node in baseline_window["nodes"]}
     right_nodes = {node["id"]: node for node in comparison_window["nodes"]}
@@ -1169,30 +1275,31 @@ def render_graph_tab(df: pd.DataFrame, edges: pd.DataFrame, payload: dict) -> No
             item["delta"] = delta
             risers.append(item)
 
-    delta_cols = st.columns(3)
-    for col, title, items, extra in [
-        (delta_cols[0], "New in comparison", sorted(new_items, key=lambda item: item["mentions"], reverse=True)[:10], lambda item: ""),
-        (delta_cols[1], "Biggest risers", sorted(risers, key=lambda item: item["delta"], reverse=True)[:10], lambda item: f" - +{item['delta']}"),
-        (delta_cols[2], "Dropped since baseline", sorted(dropped_items, key=lambda item: item["mentions"], reverse=True)[:10], lambda item: ""),
-    ]:
-        with col:
-            st.markdown(f"**{title}**")
-            if not items:
-                st.caption("No items.")
-            for item in items:
-                st.markdown(
-                    f"""
-                    <div class="topic-card">
-                      <div class="topic-title">{item['id']}</div>
-                      <div class="topic-meta">{type_pill(item['type'])} {item['mentions']} mentions{extra(item)}</div>
-                      <div class="topic-meta">Confidence {pct(item['confidence'])}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+        st.subheader("Comparison readout")
+        delta_cols = st.columns(3)
+        for col, title, items, extra in [
+            (delta_cols[0], "New in comparison", sorted(new_items, key=lambda item: item["mentions"], reverse=True)[:10], lambda item: ""),
+            (delta_cols[1], "Biggest risers", sorted(risers, key=lambda item: item["delta"], reverse=True)[:10], lambda item: f" - +{item['delta']}"),
+            (delta_cols[2], "Dropped since baseline", sorted(dropped_items, key=lambda item: item["mentions"], reverse=True)[:10], lambda item: ""),
+        ]:
+            with col:
+                st.markdown(f"**{title}**")
+                if not items:
+                    st.caption("No items.")
+                for item in items:
+                    st.markdown(
+                        f"""
+                        <div class="topic-card">
+                          <div class="topic-title">{item['id']}</div>
+                          <div class="topic-meta">{type_pill(item['type'])} {item['mentions']} mentions{extra(item)}</div>
+                          <div class="topic-meta">Confidence {pct(item['confidence'])}</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
 
-    st.subheader("Focus analysis")
-    build_focus_panel(df, baseline_weeks, comparison_weeks, focus_entity)
+        st.subheader("Focus analysis")
+        build_focus_panel(df, baseline_weeks, comparison_weeks, focus_entity)
 
 
 def render_review_tab(base_dir: str, article_metadata: dict[str, dict]) -> None:
