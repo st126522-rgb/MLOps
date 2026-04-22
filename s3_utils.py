@@ -185,6 +185,16 @@ def week_key() -> str:
     return f"{current.year}-W{current.isocalendar()[1]:02d}"
 
 
+def week_key_for(value: datetime.date | datetime.datetime | str) -> str:
+    """Return an ISO week key for a provided date-like value."""
+    if isinstance(value, str):
+        value = datetime.date.fromisoformat(value)
+    elif isinstance(value, datetime.datetime):
+        value = value.date()
+
+    return f"{value.year}-W{value.isocalendar()[1]:02d}"
+
+
 def append_drift_log(batch_id: str, confidences: list[float], week: str) -> str:
     from config import DRIFT_LOW_CONFIDENCE_THRESH
 

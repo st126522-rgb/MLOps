@@ -42,6 +42,49 @@ def test_week_key_format():
     assert len(key) == 8
 
 
+def test_week_key_for_string():
+    from s3_utils import week_key_for
+    key = week_key_for("2026-04-22")
+    assert key == "2026-W17"
+
+
+def test_normalize_url_removes_tracking_params():
+    from news_dedup import normalize_url
+
+    original = "https://www.example.com/news/item/?utm_source=rss&id=1#section"
+    normalized = normalize_url(original)
+
+    assert normalized == "https://example.com/news/item?id=1"
+
+
+def test_stable_article_id_matches_equivalent_urls():
+    from news_dedup import stable_article_id
+
+    left = stable_article_id("https://www.example.com/post?utm_source=rss&id=42", "Title")
+    right = stable_article_id("https://example.com/post?id=42", "Title")
+
+    assert left == right
+
+
+def test_deduplicate_articles_skips_batch_and_existing_duplicates():
+    from news_dedup import deduplicate_articles
+
+    articles = [
+        {"id": "abc123"},
+        {"id": "abc123"},
+        {"id": "def456"},
+    ]
+
+    deduped, skipped_batch, skipped_existing = deduplicate_articles(
+        articles,
+        existing_ids={"def456"},
+    )
+
+    assert deduped == [{"id": "abc123"}]
+    assert skipped_batch == 1
+    assert skipped_existing == 1
+
+
 # ─────────────────────────────────────────────────────────
 # Test: drift metrics computation
 # ─────────────────────────────────────────────────────────

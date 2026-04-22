@@ -3,31 +3,31 @@ Fetch AI news from RSS feeds and save raw articles to local storage or S3.
 """
 
 from datetime import datetime, timezone
-import hashlib
 
 import feedparser
 
 from config import RSS_FEEDS
+from news_dedup import deduplicate_articles, load_existing_article_ids, stable_article_id
 from s3_utils import week_key, write_json
 
 
-def fetch_articles() -> list[dict]:
-    """Fetch articles from all RSS feeds and deduplicate by URL hash."""
-    seen_hashes = set()
-    articles = []
+def fetch_articles(existing_ids: set[str] | None = None) -> list[dict]:
+    """Fetch articles from all RSS feeds and deduplicate them safely."""
+    candidates = []
 
     for feed_url in RSS_FEEDS:
         try:
             feed = feedparser.parse(feed_url)
             for entry in feed.entries[:30]:
-                url_hash = hashlib.md5(entry.get("link", "").encode(), usedforsecurity=False).hexdigest()[:12]
-                if url_hash in seen_hashes:
-                    continue
-                seen_hashes.add(url_hash)
+                article_id = stable_article_id(
+                    entry.get("link", ""),
+                    entry.get("title", ""),
+                    str(entry.get("published", "")),
+                )
 
-                articles.append(
+                candidates.append(
                     {
-                        "id": url_hash,
+                        "id": article_id,
                         "title": entry.get("title", ""),
                         "summary": entry.get("summary", ""),
                         "link": entry.get("link", ""),
@@ -39,7 +39,12 @@ def fetch_articles() -> list[dict]:
         except Exception as exc:
             print(f"  Feed error ({feed_url[:40]}...): {exc}")
 
+    articles, skipped_batch, skipped_existing = deduplicate_articles(candidates, existing_ids=existing_ids)
     print(f" Fetched {len(articles)} unique articles")
+    if skipped_batch:
+        print(f"  Skipped {skipped_batch} duplicates inside this fetch")
+    if skipped_existing:
+        print(f"  Skipped {skipped_existing} articles already present in raw storage")
     return articles
 
 
@@ -49,7 +54,8 @@ def run() -> None:
     week = week_key()
 
     print(f"\n[INGEST] {now.isoformat()}")
-    articles = fetch_articles()
+    existing_ids = load_existing_article_ids("raw")
+    articles = fetch_articles(existing_ids=existing_ids)
 
     if not articles:
         print("  No articles fetched - skipping")
