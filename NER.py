@@ -2,6 +2,7 @@
 Load raw articles, run NER, and save entity results plus drift artifacts.
 """
 
+import argparse
 import tempfile
 from pathlib import Path
 
@@ -10,7 +11,7 @@ from transformers import pipeline as hf_pipeline
 
 from config import BUCKET, LABEL_CONFIDENCE_THRESH, LOCAL_DIR, LOCAL_MODE, NER_MODEL
 from entity_postprocess import merge_model_entities
-from s3_utils import append_drift_log, list_keys, read_json, week_key, write_json
+from s3_utils import append_drift_log, list_keys, read_json, week_key, week_sort_key, write_json
 
 
 _MODEL_TEMP_DIR = None
@@ -136,18 +137,34 @@ def process_batch(batch: dict) -> dict:
     }
 
 
-def run(force: bool = False) -> None:
-    week = week_key()
-    print(f"\n[NER] Processing week {week} (force={force})")
+def available_raw_weeks() -> list[str]:
+    weeks = {
+        key.split("/")[1]
+        for key in list_keys("raw")
+        if key.endswith(".json") and key.count("/") >= 2
+    }
+    return sorted(weeks, key=week_sort_key)
 
-    raw_keys = set(key.split("/")[-1] for key in list_keys(f"raw/{week}"))
 
+def pending_batch_keys(week: str, force: bool = False) -> list[str]:
+    raw_keys = sorted(set(key.split("/")[-1] for key in list_keys(f"raw/{week}")))
     if force:
-        pending = list(raw_keys)
-    else:
-        entity_keys = set(key.split("/")[-1] for key in list_keys(f"entities/{week}"))
-        pending = [key for key in raw_keys if key not in entity_keys]
+        return raw_keys
 
+    entity_keys = set(key.split("/")[-1] for key in list_keys(f"entities/{week}"))
+    return [key for key in raw_keys if key not in entity_keys]
+
+
+def process_week(week: str, force: bool = False) -> tuple[int, int]:
+    print(f"\n[NER] Processing week {week} (force={force})")
+    pending = pending_batch_keys(week, force=force)
+
+    if not pending:
+        print("  No pending raw batches for this week")
+        return 0, 0
+
+    batches_processed = 0
+    spans_flagged = 0
     for key_name in pending:
         batch_id = key_name.replace(".json", "")
         raw_data = read_json(f"raw/{week}/{key_name}")
@@ -164,7 +181,87 @@ def run(force: bool = False) -> None:
             print(f"    [FLAGGED] '{span['entity']}' (conf: {span['confidence']})")
 
         print(f"  [OK] {len(result['entity_results'])} articles processed, {len(result['flagged_spans'])} spans flagged")
+        batches_processed += 1
+        spans_flagged += len(result["flagged_spans"])
+
+    return batches_processed, spans_flagged
+
+
+def resolve_target_weeks(
+    selected_week: str | None = None,
+    start_week: str | None = None,
+    end_week: str | None = None,
+    all_weeks: bool = False,
+) -> list[str]:
+    weeks = available_raw_weeks()
+    if not weeks:
+        return []
+
+    if selected_week:
+        return [selected_week]
+
+    if start_week or end_week:
+        range_start = start_week or weeks[0]
+        range_end = end_week or weeks[-1]
+        start_key = week_sort_key(range_start)
+        end_key = week_sort_key(range_end)
+        if start_key > end_key:
+            raise SystemExit("--start-week must be earlier than or equal to --end-week")
+        return [week for week in weeks if start_key <= week_sort_key(week) <= end_key]
+
+    if all_weeks:
+        return weeks
+
+    return [week_key()]
+
+
+def run(
+    force: bool = False,
+    selected_week: str | None = None,
+    start_week: str | None = None,
+    end_week: str | None = None,
+    all_weeks: bool = False,
+) -> None:
+    target_weeks = resolve_target_weeks(
+        selected_week=selected_week,
+        start_week=start_week,
+        end_week=end_week,
+        all_weeks=all_weeks,
+    )
+    if not target_weeks:
+        print("[NER] No raw weeks found.")
+        return
+
+    print(f"[NER] Target weeks: {', '.join(target_weeks)}")
+    total_batches = 0
+    total_flagged = 0
+    for week in target_weeks:
+        batches_processed, spans_flagged = process_week(week, force=force)
+        total_batches += batches_processed
+        total_flagged += spans_flagged
+
+    print(
+        f"\n[NER] complete -> processed {total_batches} batch(es) "
+        f"across {len(target_weeks)} week(s), flagged {total_flagged} span(s)"
+    )
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run NER over current or historical raw batches.")
+    parser.add_argument("--force", action="store_true", help="Reprocess batches even if entities already exist")
+    parser.add_argument("--week", default=None, help="Process one ISO week, for example 2026-W17")
+    parser.add_argument("--start-week", default=None, help="Start of ISO week range, for example 2026-W14")
+    parser.add_argument("--end-week", default=None, help="End of ISO week range, for example 2026-W17")
+    parser.add_argument("--all-weeks", action="store_true", help="Process all available raw weeks in order")
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    run(force=True)
+    args = parse_args()
+    run(
+        force=args.force,
+        selected_week=args.week,
+        start_week=args.start_week,
+        end_week=args.end_week,
+        all_weeks=args.all_weeks,
+    )

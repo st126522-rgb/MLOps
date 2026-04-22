@@ -195,6 +195,12 @@ def week_key_for(value: datetime.date | datetime.datetime | str) -> str:
     return f"{value.year}-W{value.isocalendar()[1]:02d}"
 
 
+def week_sort_key(week: str) -> tuple[int, int]:
+    """Return a sortable key for ISO week labels like 2026-W17."""
+    year_text, week_text = week.split("-W", 1)
+    return int(year_text), int(week_text)
+
+
 def append_drift_log(batch_id: str, confidences: list[float], week: str) -> str:
     from config import DRIFT_LOW_CONFIDENCE_THRESH
 

@@ -48,6 +48,11 @@ def test_week_key_for_string():
     assert key == "2026-W17"
 
 
+def test_week_sort_key():
+    from s3_utils import week_sort_key
+    assert week_sort_key("2026-W17") == (2026, 17)
+
+
 def test_normalize_url_removes_tracking_params():
     from news_dedup import normalize_url
 

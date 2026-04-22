@@ -246,6 +246,39 @@ def inject_styles() -> None:
             color: var(--ink-strong) !important;
             font-weight: 700 !important;
         }
+        [data-baseweb="select"] > div,
+        [data-baseweb="select"] input,
+        [data-baseweb="tag"] {
+            color: #f8fafc !important;
+        }
+        [data-baseweb="select"] > div {
+            background: #232733 !important;
+            border-color: #2f3a4b !important;
+        }
+        [data-baseweb="popover"],
+        [data-baseweb="menu"],
+        [role="listbox"] {
+            background: #ffffff !important;
+            color: #102033 !important;
+        }
+        [role="option"] {
+            background: #ffffff !important;
+            color: #102033 !important;
+        }
+        [role="option"]:hover {
+            background: #eaf3ff !important;
+            color: #102033 !important;
+        }
+        [data-baseweb="tag"] {
+            background: #ff5b5b !important;
+            border-radius: 10px !important;
+            border: 1px solid rgba(255,255,255,0.15) !important;
+        }
+        [data-baseweb="tag"] span,
+        [data-baseweb="tag"] svg {
+            color: #ffffff !important;
+            fill: #ffffff !important;
+        }
         [data-testid="stMetricValue"],
         [data-testid="stMetricLabel"] {
             color: var(--ink-strong) !important;
@@ -445,6 +478,37 @@ def save_review_csv(base_dir: str, df: pd.DataFrame) -> Path:
     output = review_dir / "label_review.csv"
     ensure_review_df(df).to_csv(output, index=False)
     return output
+
+
+def validate_review_rows(df: pd.DataFrame) -> list[str]:
+    errors: list[str] = []
+    if df.empty:
+        return errors
+
+    valid_types = set(TYPE_LABELS.keys())
+    for _, row in df.iterrows():
+        span_id = str(row.get("span_id", "")).strip()
+        status = str(row.get("status", "")).strip().lower()
+        split = str(row.get("split", "")).strip().lower()
+        corrected_entity = str(row.get("corrected_entity", "")).strip()
+        corrected_type = str(row.get("corrected_type", "")).strip()
+        predicted_type = str(row.get("type", "")).strip()
+
+        if status not in {"pending", "accept", "correct", "reject"}:
+            errors.append(f"{span_id}: invalid status '{status}'")
+        if split not in {"train", "eval"}:
+            errors.append(f"{span_id}: invalid split '{split}'")
+        if predicted_type and predicted_type not in valid_types:
+            errors.append(f"{span_id}: invalid predicted type '{predicted_type}'")
+        if status == "correct":
+            if not corrected_entity:
+                errors.append(f"{span_id}: corrected rows need corrected_entity")
+            if corrected_type not in valid_types:
+                errors.append(f"{span_id}: corrected rows need a valid corrected_type")
+        if status == "accept" and corrected_type and corrected_type not in valid_types:
+            errors.append(f"{span_id}: accept row has invalid corrected_type '{corrected_type}'")
+
+    return errors
 
 
 def merge_queue_and_review(base_dir: str, article_metadata: dict[str, dict]) -> pd.DataFrame:
@@ -1275,13 +1339,15 @@ def render_graph_tab(df: pd.DataFrame, edges: pd.DataFrame, payload: dict) -> No
             item["delta"] = delta
             risers.append(item)
 
+    with main_col:
         st.subheader("Comparison readout")
         delta_cols = st.columns(3)
-        for col, title, items, extra in [
-            (delta_cols[0], "New in comparison", sorted(new_items, key=lambda item: item["mentions"], reverse=True)[:10], lambda item: ""),
-            (delta_cols[1], "Biggest risers", sorted(risers, key=lambda item: item["delta"], reverse=True)[:10], lambda item: f" - +{item['delta']}"),
-            (delta_cols[2], "Dropped since baseline", sorted(dropped_items, key=lambda item: item["mentions"], reverse=True)[:10], lambda item: ""),
-        ]:
+        sections = [
+            ("New in comparison", sorted(new_items, key=lambda item: item["mentions"], reverse=True)[:10], lambda item: ""),
+            ("Biggest risers", sorted(risers, key=lambda item: item["delta"], reverse=True)[:10], lambda item: f" - +{item['delta']}"),
+            ("Dropped since baseline", sorted(dropped_items, key=lambda item: item["mentions"], reverse=True)[:10], lambda item: ""),
+        ]
+        for col, (title, items, extra) in zip(delta_cols, sections):
             with col:
                 st.markdown(f"**{title}**")
                 if not items:
@@ -1394,11 +1460,24 @@ def render_review_tab(base_dir: str, article_metadata: dict[str, dict]) -> None:
         key="review_editor",
     )
 
+    review_errors = validate_review_rows(edited)
+    if review_errors:
+        st.error("Review file has validation issues. Fix these before saving.")
+        for message in review_errors[:12]:
+            st.caption(f"- {message}")
+        if len(review_errors) > 12:
+            st.caption(f"...and {len(review_errors) - 12} more")
+    else:
+        st.success("Review table passed validation.")
+
     action_cols = st.columns([1, 1, 1, 2])
     if action_cols[0].button("Save review CSV", type="primary"):
-        saved_df = overlay_review_frames(df, edited)
-        saved_path = save_review_csv(base_dir, saved_df)
-        st.success(f"Saved review file to {saved_path}")
+        if review_errors:
+            st.error("Cannot save until validation errors are fixed.")
+        else:
+            saved_df = overlay_review_frames(df, edited)
+            saved_path = save_review_csv(base_dir, saved_df)
+            st.success(f"Saved review file to {saved_path}")
 
     action_cols[1].download_button(
         "Download full review CSV",
