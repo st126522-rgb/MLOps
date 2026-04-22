@@ -193,8 +193,22 @@ def global_layout(windows: list[dict]) -> dict[str, tuple[float, float]]:
     if not graph.nodes:
         return {}
 
-    positions = nx.spring_layout(graph, seed=7, k=1.6, iterations=150, weight="weight")
-    return {node: [float(pos[0]), float(pos[1])] for node, pos in positions.items()}
+    node_count = max(1, len(graph.nodes))
+    spring_k = max(0.42, min(0.95, 1.8 / (node_count**0.35)))
+    positions = nx.spring_layout(graph, seed=7, k=spring_k, iterations=220, weight="weight")
+
+    xs = [float(pos[0]) for pos in positions.values()]
+    ys = [float(pos[1]) for pos in positions.values()]
+    center_x = sum(xs) / len(xs)
+    center_y = sum(ys) / len(ys)
+
+    compacted = {}
+    for node, pos in positions.items():
+        x_value = (float(pos[0]) - center_x) * 0.72
+        y_value = (float(pos[1]) - center_y) * 0.72
+        compacted[node] = [x_value, y_value]
+
+    return compacted
 
 
 def weekly_trends(df: pd.DataFrame) -> dict:

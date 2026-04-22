@@ -594,7 +594,55 @@ def build_window_for_weeks(df: pd.DataFrame, edges: pd.DataFrame, positions: dic
 
 
 def node_size(mentions: int) -> float:
-    return min(52.0, 12.0 + (max(1, mentions) ** 0.5) * 6.0)
+    return min(58.0, 14.0 + (max(1, mentions) ** 0.5) * 6.8)
+
+
+def percentile(values: list[float], fraction: float) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    if len(ordered) == 1:
+        return ordered[0]
+    index = max(0.0, min(float(len(ordered) - 1), fraction * (len(ordered) - 1)))
+    lower = int(index)
+    upper = min(lower + 1, len(ordered) - 1)
+    remainder = index - lower
+    return ordered[lower] * (1 - remainder) + ordered[upper] * remainder
+
+
+def compute_view_ranges(nodes: list[dict], focus_entity: str = "") -> tuple[list[float] | None, list[float] | None]:
+    if not nodes:
+        return None, None
+
+    xs = [float(node["x"]) for node in nodes]
+    ys = [float(node["y"]) for node in nodes]
+    x_min, x_max = min(xs), max(xs)
+    y_min, y_max = min(ys), max(ys)
+
+    if len(nodes) > 8:
+        core_x_min = percentile(xs, 0.08)
+        core_x_max = percentile(xs, 0.92)
+        core_y_min = percentile(ys, 0.08)
+        core_y_max = percentile(ys, 0.92)
+
+        full_x_span = max(0.001, x_max - x_min)
+        full_y_span = max(0.001, y_max - y_min)
+        core_x_span = max(0.001, core_x_max - core_x_min)
+        core_y_span = max(0.001, core_y_max - core_y_min)
+
+        if full_x_span > core_x_span * 1.9:
+            x_min, x_max = core_x_min, core_x_max
+        if full_y_span > core_y_span * 1.9:
+            y_min, y_max = core_y_min, core_y_max
+
+    if focus_entity:
+        x_pad = max(0.18, (x_max - x_min) * 0.18)
+        y_pad = max(0.18, (y_max - y_min) * 0.18)
+    else:
+        x_pad = max(0.22, (x_max - x_min) * 0.12)
+        y_pad = max(0.22, (y_max - y_min) * 0.12)
+
+    return [x_min - x_pad, x_max + x_pad], [y_min - y_pad, y_max + y_pad]
 
 
 def build_overlay_graph_figure(
@@ -846,7 +894,7 @@ def build_overlay_graph_figure(
                 customdata=customdata,
                 mode="markers+text" if labels_on else "markers",
                 textposition="top center",
-                textfont=dict(size=11, color="#102033"),
+                textfont=dict(size=12, color="#102033"),
                 marker=dict(
                     color=marker_colors,
                     size=marker_sizes,
@@ -868,13 +916,14 @@ def build_overlay_graph_figure(
             )
         )
 
+    x_range, y_range = compute_view_ranges(list(combined_nodes.values()), focus_entity=focus_entity)
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="#FCFDFE",
         margin=dict(l=8, r=8, t=18, b=8),
-        height=720,
-        xaxis=dict(visible=False),
-        yaxis=dict(visible=False, scaleanchor="x", scaleratio=1),
+        height=780,
+        xaxis=dict(visible=False, range=x_range),
+        yaxis=dict(visible=False, scaleanchor="x", scaleratio=1, range=y_range),
         legend=dict(orientation="h", y=1.08, x=0, bgcolor="rgba(255,255,255,0.75)"),
         dragmode="pan",
         hoverlabel=dict(bgcolor="#0F172A", font_color="white"),
@@ -997,7 +1046,7 @@ def build_single_window_figure(
                 ],
                 mode="markers+text" if labels_on else "markers",
                 textposition="top center",
-                textfont=dict(size=10, color="#172033"),
+                textfont=dict(size=11, color="#172033"),
                 marker=dict(
                     color=marker_colors,
                     size=[node_size(int(node["mentions"])) for node in bucket],
@@ -1016,13 +1065,14 @@ def build_single_window_figure(
             )
         )
 
+    x_range, y_range = compute_view_ranges(list(nodes.values()), focus_entity=focus_entity)
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="#FBFCFE",
         margin=dict(l=6, r=6, t=18, b=6),
-        height=620,
-        xaxis=dict(visible=False),
-        yaxis=dict(visible=False, scaleanchor="x", scaleratio=1),
+        height=700,
+        xaxis=dict(visible=False, range=x_range),
+        yaxis=dict(visible=False, scaleanchor="x", scaleratio=1, range=y_range),
         legend=dict(orientation="h", y=1.08, x=0),
         dragmode="pan",
         hoverlabel=dict(bgcolor="#0F172A", font_color="white"),
