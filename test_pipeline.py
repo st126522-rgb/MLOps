@@ -245,3 +245,54 @@ def test_drift_metric_payload_from_report():
     assert values["FlaggedSpanPercentage"] == 42.0
     assert values["LabelQueueSize"] == 17
     assert values["DriftDetected"] == 1
+
+
+def test_lambda_process_filters_raw_s3_json_events():
+    from lambda_process import raw_keys_from_event
+
+    event = {
+        "Records": [
+            {
+                "eventSource": "aws:s3",
+                "s3": {
+                    "bucket": {"name": "ai-news-mlops-2026"},
+                    "object": {"key": "raw/2026-W17/2026-04-23_01.json"},
+                },
+            },
+            {
+                "eventSource": "aws:s3",
+                "s3": {
+                    "bucket": {"name": "ai-news-mlops-2026"},
+                    "object": {"key": "entities/2026-W17/ignored.json"},
+                },
+            },
+        ]
+    }
+
+    assert raw_keys_from_event(event, bucket="ai-news-mlops-2026") == [
+        "raw/2026-W17/2026-04-23_01.json"
+    ]
+
+
+def test_lambda_process_builds_tag_target(monkeypatch):
+    from lambda_process import build_ssm_target
+
+    monkeypatch.delenv("PROCESS_INSTANCE_ID", raising=False)
+    monkeypatch.setenv("PROCESS_TARGET_TAG_KEY", "Role")
+    monkeypatch.setenv("PROCESS_TARGET_TAG_VALUE", "processor")
+
+    assert build_ssm_target() == {
+        "Targets": [{"Key": "tag:Role", "Values": ["processor"]}]
+    }
+
+
+def test_lambda_process_manual_dry_run(monkeypatch):
+    from lambda_process import handler
+
+    monkeypatch.setenv("PROCESS_DRY_RUN", "true")
+    monkeypatch.setenv("S3_BUCKET", "ai-news-mlops-2026")
+
+    response = handler({"manual_run": True}, None)
+
+    assert response["statusCode"] == 200
+    assert "manual-run" in response["body"]
