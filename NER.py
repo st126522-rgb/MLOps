@@ -107,7 +107,7 @@ def process_batch(batch: dict) -> dict:
                         "entity": entity["entity"],
                         "type": entity["type"],
                         "confidence": entity["confidence"],
-                        "context": text[:200],
+                        "context": text[:512],
                         "article_id": article["id"],
                         "article_title": article.get("title", ""),
                         "article_link": article.get("link", ""),

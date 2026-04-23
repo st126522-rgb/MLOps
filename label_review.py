@@ -108,6 +108,7 @@ def build_datasets(input_path: str | None = None) -> tuple[int, int]:
 
     train_samples = []
     eval_samples = []
+    skipped_missing_context = 0
 
     with review_path.open(newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle)
@@ -125,8 +126,16 @@ def build_datasets(input_path: str | None = None) -> tuple[int, int]:
             if not entity or entity_type not in set(ENTITY_TYPES):
                 continue
 
+            context = row.get("context", "").strip()
+            article_title = row.get("article_title", "").strip()
+            if entity.lower() not in context.lower() and entity.lower() in article_title.lower():
+                context = article_title
+            if entity.lower() not in context.lower():
+                skipped_missing_context += 1
+                continue
+
             sample = {
-                "text": row.get("context", "").strip(),
+                "text": context,
                 "entities": [{"entity": entity, "type": entity_type}],
                 "source_span_id": row.get("span_id", ""),
             }
@@ -143,6 +152,8 @@ def build_datasets(input_path: str | None = None) -> tuple[int, int]:
 
     print(f"[OK] Built train samples: {len(train_samples)}")
     print(f"[OK] Built eval samples : {len(eval_samples) or max(1, len(train_samples) // 5)}")
+    if skipped_missing_context:
+        print(f"[WARN] Skipped {skipped_missing_context} reviewed row(s) where entity was not present in context")
     return len(train_samples), len(eval_samples)
 
 
