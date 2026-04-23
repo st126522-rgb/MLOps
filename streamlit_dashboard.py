@@ -655,12 +655,19 @@ def smart_label_set(nodes: list[dict], labels_on: bool, focus_entity: str, focus
     if not labels_on or not nodes:
         return set()
 
+    node_ids = {node["id"] for node in nodes}
     if focus_entity:
         top_support = {
             node["id"]
-            for node in sorted(nodes, key=lambda item: (item["mentions"], item["confidence"]), reverse=True)[:8]
+            for node in sorted(nodes, key=lambda item: (item["mentions"], item["confidence"]), reverse=True)[:10]
         }
-        return ({focus_entity} | set(focus_neighbors) | top_support) & {node["id"] for node in nodes}
+        return ({focus_entity} | set(focus_neighbors) | top_support) & node_ids
+
+    if len(nodes) <= 18:
+        return node_ids
+    if len(nodes) <= 36:
+        top_nodes = sorted(nodes, key=lambda item: (item["mentions"], item["confidence"]), reverse=True)[:20]
+        return {node["id"] for node in top_nodes}
 
     top_nodes = sorted(nodes, key=lambda item: (item["mentions"], item["confidence"]), reverse=True)[:12]
     return {node["id"] for node in top_nodes}
@@ -969,6 +976,7 @@ def build_overlay_graph_figure(
                 x=[node["x"] for node in nodes],
                 y=[node["y"] for node in nodes],
                 text=text_labels,
+                hovertext=[node["id"] for node in nodes],
                 customdata=customdata,
                 mode="markers+text" if labels_on else "markers",
                 textposition="top center",
@@ -980,7 +988,7 @@ def build_overlay_graph_figure(
                     line=dict(color=marker_lines, width=marker_line_widths),
                 ),
                 hovertemplate=(
-                    "<b>%{text}</b><br>"
+                    "<b>%{hovertext}</b><br>"
                     "Type: %{customdata[0]}<br>"
                     "Status: %{customdata[1]}<br>"
                     "Mentions: %{customdata[2]}<br>"
@@ -1007,6 +1015,22 @@ def build_overlay_graph_figure(
         dragmode="pan",
         hoverlabel=dict(bgcolor="#0F172A", font_color="white"),
     )
+    if focus_entity and focus_entity in combined_nodes:
+        focus_node = combined_nodes[focus_entity]
+        fig.add_annotation(
+            x=focus_node["x"],
+            y=focus_node["y"],
+            text=f"Focused: {focus_entity}",
+            showarrow=True,
+            arrowhead=2,
+            arrowsize=1,
+            arrowwidth=1.6,
+            ax=36,
+            ay=-36,
+            bgcolor="rgba(15,23,42,0.92)",
+            bordercolor="#F59E0B",
+            font=dict(color="white", size=11),
+        )
 
     summary = {
         "new_count": sum(1 for node in combined_nodes.values() if node["status"] == "new"),
@@ -1127,6 +1151,7 @@ def build_single_window_figure(
                 x=[node["x"] for node in bucket],
                 y=[node["y"] for node in bucket],
                 text=text_labels,
+                hovertext=[node["id"] for node in bucket],
                 customdata=[
                     [
                         node["type"],
@@ -1148,7 +1173,7 @@ def build_single_window_figure(
                     line=dict(color=line_colors, width=2.0),
                 ),
                 hovertemplate=(
-                    "<b>%{text}</b><br>"
+                    "<b>%{hovertext}</b><br>"
                     "Type: %{customdata[0]}<br>"
                     "Mentions: %{customdata[1]}<br>"
                     "Confidence: %{customdata[2]:.2f}<br>"
@@ -1172,6 +1197,22 @@ def build_single_window_figure(
         dragmode="pan",
         hoverlabel=dict(bgcolor="#0F172A", font_color="white"),
     )
+    if focus_entity and focus_entity in nodes:
+        focus_node = nodes[focus_entity]
+        fig.add_annotation(
+            x=focus_node["x"],
+            y=focus_node["y"],
+            text=f"Focused: {focus_entity}",
+            showarrow=True,
+            arrowhead=2,
+            arrowsize=1,
+            arrowwidth=1.6,
+            ax=36,
+            ay=-36,
+            bgcolor="rgba(15,23,42,0.92)",
+            bordercolor="#F59E0B",
+            font=dict(color="white", size=11),
+        )
     return fig
 
 
@@ -1428,6 +1469,9 @@ def render_graph_tab(df: pd.DataFrame, edges: pd.DataFrame, payload: dict) -> No
                 for key, value in summary["legend"].items():
                     st.markdown(f"- **{key}**: {value}")
 
+            st.subheader("Focus analysis")
+            build_focus_panel(df, baseline_weeks, comparison_weeks, focus_entity)
+
         else:
             graph_cols = st.columns(2)
             with graph_cols[0]:
@@ -1470,6 +1514,8 @@ def render_graph_tab(df: pd.DataFrame, edges: pd.DataFrame, payload: dict) -> No
                     config={"displaylogo": False, "scrollZoom": True},
                     key=f"network_right_{comparison_week}_{min_mentions}_{min_edge}_{labels_on}_{focus_entity}",
                 )
+            st.subheader("Focus analysis")
+            build_focus_panel(df, baseline_weeks, comparison_weeks, focus_entity)
         st.markdown("</div>", unsafe_allow_html=True)
 
     left_nodes = {node["id"]: node for node in baseline_window["nodes"]}
@@ -1509,8 +1555,6 @@ def render_graph_tab(df: pd.DataFrame, edges: pd.DataFrame, payload: dict) -> No
                         unsafe_allow_html=True,
                     )
 
-        st.subheader("Focus analysis")
-        build_focus_panel(df, baseline_weeks, comparison_weeks, focus_entity)
 
 
 def render_review_tab(base_dir: str, article_metadata: dict[str, dict]) -> None:
