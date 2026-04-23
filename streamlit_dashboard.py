@@ -452,6 +452,16 @@ def read_json_file(path: Path) -> dict:
         return {}
 
 
+def eval_metrics(payload: dict) -> dict:
+    metrics = payload.get("metrics", {})
+    return {
+        "f1": float(metrics.get("f1", payload.get("f1", 0.0)) or 0.0),
+        "precision": float(metrics.get("precision", payload.get("precision", 0.0)) or 0.0),
+        "recall": float(metrics.get("recall", payload.get("recall", 0.0)) or 0.0),
+        "model_source": str(payload.get("model_source", "") or payload.get("model_prefix", "")),
+    }
+
+
 @st.cache_data(show_spinner=False)
 def load_model_ops_state(base_dir: str) -> dict:
     eval_dir = Path(base_dir) / "eval"
@@ -467,13 +477,14 @@ def load_model_ops_state(base_dir: str) -> dict:
         payload = read_json_file(result_path)
         if not payload:
             continue
+        metrics = eval_metrics(payload)
         history.append(
             {
                 "label": result_path.stem.replace("results_", ""),
-                "f1": float(payload.get("f1", 0.0) or 0.0),
-                "precision": float(payload.get("precision", 0.0) or 0.0),
-                "recall": float(payload.get("recall", 0.0) or 0.0),
-                "model_source": str(payload.get("model_source", "")),
+                "f1": metrics["f1"],
+                "precision": metrics["precision"],
+                "recall": metrics["recall"],
+                "model_source": metrics["model_source"],
                 "updated_at": datetime.datetime.fromtimestamp(result_path.stat().st_mtime, tz=datetime.UTC).isoformat(),
             }
         )
@@ -1360,11 +1371,13 @@ def render_model_ops_panel(base_dir: str) -> None:
     model_state = load_model_ops_state(base_dir)
     current_result = model_state["current_result"]
     candidate_result = model_state["candidate_result"]
+    current_metrics = eval_metrics(current_result)
+    candidate_metrics = eval_metrics(candidate_result)
 
-    current_f1 = float(current_result.get("f1", 0.0) or 0.0)
-    candidate_f1 = float(candidate_result.get("f1", 0.0) or 0.0)
-    current_precision = float(current_result.get("precision", 0.0) or 0.0)
-    current_recall = float(current_result.get("recall", 0.0) or 0.0)
+    current_f1 = current_metrics["f1"]
+    candidate_f1 = candidate_metrics["f1"]
+    current_precision = current_metrics["precision"]
+    current_recall = current_metrics["recall"]
     f1_delta = candidate_f1 - current_f1
 
     panel_header(
@@ -1384,7 +1397,7 @@ def render_model_ops_panel(base_dir: str) -> None:
         current_status = "present" if model_state["current_model_exists"] else "missing"
         candidate_status = "present" if model_state["candidate_model_exists"] else "missing"
         latest_history = model_state["history"][-1] if model_state["history"] else {}
-        latest_source = latest_history.get("model_source", "") or current_result.get("model_source", "")
+        latest_source = latest_history.get("model_source", "") or current_metrics["model_source"]
 
         st.markdown(
             f"""
