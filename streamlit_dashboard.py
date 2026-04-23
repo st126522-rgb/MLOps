@@ -646,6 +646,26 @@ def node_size(mentions: int) -> float:
     return min(58.0, 14.0 + (max(1, mentions) ** 0.5) * 6.8)
 
 
+def edge_width(weight: int, highlighted: bool = False) -> float:
+    base = 0.9 + min(7.0, (max(1, weight) ** 0.72) * 0.85)
+    return base + (1.25 if highlighted else 0.0)
+
+
+def smart_label_set(nodes: list[dict], labels_on: bool, focus_entity: str, focus_neighbors: set[str]) -> set[str]:
+    if not labels_on or not nodes:
+        return set()
+
+    if focus_entity:
+        top_support = {
+            node["id"]
+            for node in sorted(nodes, key=lambda item: (item["mentions"], item["confidence"]), reverse=True)[:8]
+        }
+        return ({focus_entity} | set(focus_neighbors) | top_support) & {node["id"] for node in nodes}
+
+    top_nodes = sorted(nodes, key=lambda item: (item["mentions"], item["confidence"]), reverse=True)[:12]
+    return {node["id"] for node in top_nodes}
+
+
 def percentile(values: list[float], fraction: float) -> float:
     if not values:
         return 0.0
@@ -814,7 +834,7 @@ def build_overlay_graph_figure(
         "Edges": "Article co-mentions between two entities",
     }
 
-    edge_buckets: dict[tuple[str, bool], dict[str, list]] = defaultdict(lambda: {"x": [], "y": [], "text": []})
+    edge_buckets: dict[tuple[str, bool, float], dict[str, list]] = defaultdict(lambda: {"x": [], "y": [], "text": []})
     for edge_key in edge_union:
         source, target = edge_key
         if source not in active_node_ids or target not in active_node_ids:
@@ -840,7 +860,8 @@ def build_overlay_graph_figure(
             if not highlighted and source not in focus_neighbors and target not in focus_neighbors:
                 status = f"{status}_dim"
 
-        bucket = edge_buckets[(status, highlighted)]
+        width = round(edge_width(max(baseline_weight, comparison_weight), highlighted=highlighted), 1)
+        bucket = edge_buckets[(status, highlighted, width)]
         source_node = combined_nodes[source]
         target_node = combined_nodes[target]
         bucket["x"] += [source_node["x"], target_node["x"], None]
@@ -870,8 +891,8 @@ def build_overlay_graph_figure(
         "persistent_dim": "Dimmed persistent edges",
         "historical_dim": "Dimmed historical edges",
     }
-    for (status, _highlighted), points in edge_buckets.items():
-        color, width = edge_styles[status]
+    for (status, _highlighted, dynamic_width), points in edge_buckets.items():
+        color, _base_width = edge_styles[status]
         if not points["x"]:
             continue
         fig.add_trace(
@@ -880,7 +901,7 @@ def build_overlay_graph_figure(
                 y=points["y"],
                 text=points["text"],
                 mode="lines",
-                line=dict(color=color, width=width),
+                line=dict(color=color, width=dynamic_width),
                 hovertemplate="%{text}<extra>Connection</extra>",
                 name=edge_names[status],
                 showlegend=status in {"current", "persistent", "historical"},
@@ -891,12 +912,17 @@ def build_overlay_graph_figure(
     for node in combined_nodes.values():
         status_groups[node["status"]].append(node)
 
+    all_nodes = list(combined_nodes.values())
+    label_nodes = smart_label_set(all_nodes, labels_on=labels_on, focus_entity=focus_entity, focus_neighbors=focus_neighbors)
+
     for status, nodes in status_groups.items():
         if not nodes:
             continue
         marker_colors = []
         marker_lines = []
         marker_sizes = []
+        marker_symbols = []
+        marker_line_widths = []
         text_labels = []
         customdata = []
         for node in nodes:
@@ -915,12 +941,15 @@ def build_overlay_graph_figure(
             if focus_entity and node["id"] != focus_entity and node["id"] not in focus_neighbors:
                 alpha = 0.18
             if focus_entity and node["id"] == focus_entity:
+                color = "#F59E0B"
                 line_color = "#0F172A"
 
             marker_colors.append(rgba(color, alpha))
             marker_lines.append(line_color)
-            marker_sizes.append(node_size(node["mentions"]))
-            text_labels.append(node["id"])
+            marker_sizes.append(node_size(node["mentions"]) * (1.35 if node["id"] == focus_entity else 1.0))
+            marker_symbols.append("diamond" if node["id"] == focus_entity else "circle")
+            marker_line_widths.append(3.6 if node["id"] == focus_entity else 2.0)
+            text_labels.append(node["id"] if node["id"] in label_nodes else "")
             customdata.append(
                 [
                     node["type"],
@@ -947,7 +976,8 @@ def build_overlay_graph_figure(
                 marker=dict(
                     color=marker_colors,
                     size=marker_sizes,
-                    line=dict(color=marker_lines, width=2.0),
+                    symbol=marker_symbols,
+                    line=dict(color=marker_lines, width=marker_line_widths),
                 ),
                 hovertemplate=(
                     "<b>%{text}</b><br>"
@@ -1033,7 +1063,7 @@ def build_single_window_figure(
             keep_ids = {focus_entity} | focus_neighbors
             nodes = {node_id: node for node_id, node in nodes.items() if node_id in keep_ids}
 
-    edge_x, edge_y, edge_text = [], [], []
+    edge_buckets: dict[float, dict[str, list]] = defaultdict(lambda: {"x": [], "y": [], "text": []})
     for edge in window_data.get("edges", []):
         if edge["source"] not in nodes or edge["target"] not in nodes:
             continue
@@ -1042,46 +1072,61 @@ def build_single_window_figure(
         source = nodes[edge["source"]]
         target = nodes[edge["target"]]
         color = "rgba(37,99,235,0.26)"
-        width = 1.6
+        width = edge_width(int(edge["weight"]), highlighted=edge["source"] == focus_entity or edge["target"] == focus_entity)
         if focus_entity and edge["source"] != focus_entity and edge["target"] != focus_entity:
             if edge["source"] not in focus_neighbors and edge["target"] not in focus_neighbors:
                 color = "rgba(148,163,184,0.10)"
-                width = 1.0
-        edge_x += [source["x"], target["x"], None]
-        edge_y += [source["y"], target["y"], None]
-        edge_text += [f"{edge['source']} <-> {edge['target']}<br>{edge['weight']} shared article co-mention(s)"] * 3
+                width = 0.9
+        bucket = edge_buckets[round(width, 1)]
+        bucket["x"] += [source["x"], target["x"], None]
+        bucket["y"] += [source["y"], target["y"], None]
+        bucket["text"] += [f"{edge['source']} <-> {edge['target']}<br>{edge['weight']} shared article co-mention(s)"] * 3
 
     fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            x=edge_x,
-            y=edge_y,
-            text=edge_text,
-            mode="lines",
-            line=dict(color="rgba(83,102,128,0.24)", width=1.5),
-            hovertemplate="%{text}<extra>Connection</extra>",
-            name="Connections",
+    for width, bucket in edge_buckets.items():
+        if not bucket["x"]:
+            continue
+        fig.add_trace(
+            go.Scatter(
+                x=bucket["x"],
+                y=bucket["y"],
+                text=bucket["text"],
+                mode="lines",
+                line=dict(color="rgba(83,102,128,0.24)", width=width),
+                hovertemplate="%{text}<extra>Connection</extra>",
+                name="Connections",
+                showlegend=width == max(edge_buckets),
+            )
         )
-    )
 
+    label_nodes = smart_label_set(list(nodes.values()), labels_on=labels_on, focus_entity=focus_entity, focus_neighbors=focus_neighbors)
     for entity_type in active_types:
         bucket = [node for node in nodes.values() if node["type"] == entity_type]
         if not bucket:
             continue
         marker_colors = []
         line_colors = []
+        marker_sizes = []
+        marker_symbols = []
+        text_labels = []
         for node in bucket:
             alpha = 0.92
             if focus_entity and node["id"] != focus_entity and node["id"] not in focus_neighbors:
                 alpha = 0.18
-            marker_colors.append(rgba(TYPE_COLORS.get(entity_type, "#64748B"), alpha))
+            base_color = TYPE_COLORS.get(entity_type, "#64748B")
+            if node["id"] == focus_entity:
+                base_color = "#F59E0B"
+            marker_colors.append(rgba(base_color, alpha))
             line_colors.append("#0F172A" if node["id"] == focus_entity else "#ffffff")
+            marker_sizes.append(node_size(int(node["mentions"])) * (1.35 if node["id"] == focus_entity else 1.0))
+            marker_symbols.append("diamond" if node["id"] == focus_entity else "circle")
+            text_labels.append(node["id"] if node["id"] in label_nodes else "")
 
         fig.add_trace(
             go.Scatter(
                 x=[node["x"] for node in bucket],
                 y=[node["y"] for node in bucket],
-                text=[node["id"] for node in bucket],
+                text=text_labels,
                 customdata=[
                     [
                         node["type"],
@@ -1098,7 +1143,8 @@ def build_single_window_figure(
                 textfont=dict(size=11, color="#172033"),
                 marker=dict(
                     color=marker_colors,
-                    size=[node_size(int(node["mentions"])) for node in bucket],
+                    size=marker_sizes,
+                    symbol=marker_symbols,
                     line=dict(color=line_colors, width=2.0),
                 ),
                 hovertemplate=(
@@ -1486,7 +1532,7 @@ def render_review_tab(base_dir: str, article_metadata: dict[str, dict]) -> None:
     )
 
     stats = st.columns(5)
-    stats[0].metric("Queue rows", f"{len(df):,}")
+    stats[0].metric("Review rows total", f"{len(df):,}")
     stats[1].metric("Pending", f"{(df['status'] == 'pending').sum():,}")
     stats[2].metric("Accept", f"{(df['status'] == 'accept').sum():,}")
     stats[3].metric("Correct", f"{(df['status'] == 'correct').sum():,}")

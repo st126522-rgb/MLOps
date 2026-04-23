@@ -194,8 +194,9 @@ def global_layout(windows: list[dict]) -> dict[str, tuple[float, float]]:
         return {}
 
     node_count = max(1, len(graph.nodes))
-    spring_k = max(0.42, min(0.95, 1.8 / (node_count**0.35)))
-    positions = nx.spring_layout(graph, seed=7, k=spring_k, iterations=220, weight="weight")
+    # Bias the layout toward more spacing so dense weeks remain readable in Streamlit.
+    spring_k = max(0.78, min(1.45, 3.2 / (node_count**0.32)))
+    positions = nx.spring_layout(graph, seed=7, k=spring_k, iterations=260, weight="weight")
 
     xs = [float(pos[0]) for pos in positions.values()]
     ys = [float(pos[1]) for pos in positions.values()]
@@ -204,8 +205,8 @@ def global_layout(windows: list[dict]) -> dict[str, tuple[float, float]]:
 
     compacted = {}
     for node, pos in positions.items():
-        x_value = (float(pos[0]) - center_x) * 0.72
-        y_value = (float(pos[1]) - center_y) * 0.72
+        x_value = (float(pos[0]) - center_x) * 1.18
+        y_value = (float(pos[1]) - center_y) * 1.18
         compacted[node] = [x_value, y_value]
 
     return compacted
