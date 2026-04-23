@@ -48,7 +48,10 @@ trap finalize EXIT
   echo "[SCHEDULED] app_dir $APP_DIR"
   echo "[SCHEDULED] pipeline_script $PIPELINE_SCRIPT"
   echo "[SCHEDULED] run_ingest_in_ec2 ${RUN_INGEST_IN_EC2:-false}"
-  git rev-parse --short HEAD 2>/dev/null | awk '{print "[SCHEDULED] git_rev "$0}'
+  GIT_REV="$(git -C "$APP_DIR" rev-parse --short HEAD 2>/dev/null || true)"
+  if [ -n "$GIT_REV" ]; then
+    echo "[SCHEDULED] git_rev $GIT_REV"
+  fi
   /bin/bash "$PIPELINE_SCRIPT"
   echo "[SCHEDULED] status success"
   echo "[SCHEDULED] end $(date -u)"
