@@ -39,7 +39,37 @@ def stable_split(value: str) -> str:
     return "eval" if int(digest[:2], 16) % 5 == 0 else "train"
 
 
+def load_existing_review(path: Path) -> dict[str, dict]:
+    if not path.exists():
+        return {}
+    with path.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        return {
+            row.get("span_id", "").strip(): row
+            for row in reader
+            if row.get("span_id", "").strip()
+        }
+
+
+def merge_existing_decision(row: dict, existing: dict[str, dict]) -> dict:
+    previous = existing.get(row["span_id"])
+    if not previous:
+        return row
+
+    # Preserve human decisions while refreshing queue metadata/context.
+    for column in ("status", "split", "corrected_entity", "corrected_type"):
+        value = previous.get(column, "")
+        if value:
+            row[column] = value
+    return row
+
+
 def export_review(limit: int | None = None, output: str | None = None) -> Path:
+    review_dir = storage_path("review")
+    review_dir.mkdir(parents=True, exist_ok=True)
+    output_path = Path(output) if output else review_dir / "label_review.csv"
+    existing_review = load_existing_review(output_path)
+
     rows = []
     seen = set()
     skipped = 0
@@ -56,8 +86,7 @@ def export_review(limit: int | None = None, output: str | None = None) -> Path:
         if span_id in seen:
             continue
         seen.add(span_id)
-        rows.append(
-            {
+        row = {
                 "span_id": span_id,
                 "status": "pending",
                 "split": stable_split(span_id),
@@ -73,13 +102,9 @@ def export_review(limit: int | None = None, output: str | None = None) -> Path:
                 "article_link": item.get("article_link", ""),
                 "week": item.get("week", ""),
             }
-        )
+        rows.append(merge_existing_decision(row, existing_review))
         if limit and len(rows) >= limit:
             break
-
-    review_dir = storage_path("review")
-    review_dir.mkdir(parents=True, exist_ok=True)
-    output_path = Path(output) if output else review_dir / "label_review.csv"
 
     with output_path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=REVIEW_COLUMNS)
@@ -95,7 +120,10 @@ def export_review(limit: int | None = None, output: str | None = None) -> Path:
         f"Valid types are {', '.join(ENTITY_TYPES)}.\n",
         encoding="utf-8",
     )
+    preserved = sum(1 for row in rows if row["status"] != "pending")
     print(f"[OK] Exported {len(rows)} review rows -> {output_path}")
+    if preserved:
+        print(f"[OK] Preserved {preserved} existing human decision(s)")
     if skipped:
         print(f"[WARN] Skipped {skipped} unreadable queue item(s)")
     return output_path
