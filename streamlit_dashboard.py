@@ -445,6 +445,60 @@ def load_article_metadata(base_dir: str) -> dict[str, dict]:
     return metadata
 
 
+def read_json_file(path: Path) -> dict:
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+@st.cache_data(show_spinner=False)
+def load_model_ops_state(base_dir: str) -> dict:
+    eval_dir = Path(base_dir) / "eval"
+    model_dir = Path(base_dir) / "models"
+
+    current_path = eval_dir / "current_result.json"
+    candidate_path = eval_dir / "candidate_result.json"
+    current_result = read_json_file(current_path)
+    candidate_result = read_json_file(candidate_path)
+
+    history = []
+    for result_path in sorted(eval_dir.glob("results_*.json")):
+        payload = read_json_file(result_path)
+        if not payload:
+            continue
+        history.append(
+            {
+                "label": result_path.stem.replace("results_", ""),
+                "f1": float(payload.get("f1", 0.0) or 0.0),
+                "precision": float(payload.get("precision", 0.0) or 0.0),
+                "recall": float(payload.get("recall", 0.0) or 0.0),
+                "model_source": str(payload.get("model_source", "")),
+                "updated_at": datetime.datetime.fromtimestamp(result_path.stat().st_mtime, tz=datetime.UTC).isoformat(),
+            }
+        )
+
+    current_model_dir = model_dir / "current"
+    candidate_model_dir = model_dir / "candidate"
+    return {
+        "current_result": current_result,
+        "candidate_result": candidate_result,
+        "history": history[-12:],
+        "current_model_exists": current_model_dir.exists(),
+        "candidate_model_exists": candidate_model_dir.exists(),
+        "current_model_updated_at": (
+            datetime.datetime.fromtimestamp(current_model_dir.stat().st_mtime, tz=datetime.UTC).isoformat()
+            if current_model_dir.exists()
+            else ""
+        ),
+        "candidate_model_updated_at": (
+            datetime.datetime.fromtimestamp(candidate_model_dir.stat().st_mtime, tz=datetime.UTC).isoformat()
+            if candidate_model_dir.exists()
+            else ""
+        ),
+    }
+
+
 def load_queue_records(base_dir: str, article_metadata: dict[str, dict]) -> pd.DataFrame:
     queue_dir = Path(base_dir) / "label-queue"
     rows = []
@@ -647,8 +701,8 @@ def node_size(mentions: int) -> float:
 
 
 def edge_width(weight: int, highlighted: bool = False) -> float:
-    base = 0.9 + min(7.0, (max(1, weight) ** 0.72) * 0.85)
-    return base + (1.25 if highlighted else 0.0)
+    base = 1.1 + min(10.5, (max(1, weight) ** 0.9) * 1.15)
+    return base + (1.8 if highlighted else 0.0)
 
 
 def smart_label_set(nodes: list[dict], labels_on: bool, focus_entity: str, focus_neighbors: set[str]) -> set[str]:
@@ -1271,7 +1325,89 @@ def build_focus_panel(df: pd.DataFrame, baseline_weeks: list[str], comparison_we
             )
 
 
-def render_overview_tab(df: pd.DataFrame, payload: dict) -> None:
+def build_model_history_figure(history: list[dict]) -> go.Figure:
+    fig = go.Figure()
+    if history:
+        fig.add_trace(
+            go.Scatter(
+                x=[item["label"] for item in history],
+                y=[item["f1"] for item in history],
+                mode="lines+markers",
+                line=dict(color="#60A5FA", width=3),
+                marker=dict(size=9, color="#2DD4BF", line=dict(color="#0F172A", width=1.5)),
+                hovertemplate=(
+                    "<b>%{x}</b><br>"
+                    "F1: %{y:.4f}<extra></extra>"
+                ),
+                name="F1",
+            )
+        )
+
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(255,255,255,0.92)",
+        margin=dict(l=20, r=20, t=20, b=20),
+        height=260,
+        xaxis=dict(title="", tickangle=-28),
+        yaxis=dict(title="F1", rangemode="tozero"),
+        showlegend=False,
+        hoverlabel=dict(bgcolor="#0F172A", font_color="white"),
+    )
+    return fig
+
+
+def render_model_ops_panel(base_dir: str) -> None:
+    model_state = load_model_ops_state(base_dir)
+    current_result = model_state["current_result"]
+    candidate_result = model_state["candidate_result"]
+
+    current_f1 = float(current_result.get("f1", 0.0) or 0.0)
+    candidate_f1 = float(candidate_result.get("f1", 0.0) or 0.0)
+    current_precision = float(current_result.get("precision", 0.0) or 0.0)
+    current_recall = float(current_result.get("recall", 0.0) or 0.0)
+    f1_delta = candidate_f1 - current_f1
+
+    panel_header(
+        "Model Ops",
+        "Promotion and evaluation state",
+        "This is the MLOps control view: production score, latest candidate score, and whether a trained candidate is sitting ready or has already been promoted.",
+    )
+
+    metric_cols = st.columns(4)
+    metric_cols[0].metric("Current F1", f"{current_f1:.4f}")
+    metric_cols[1].metric("Current precision", f"{current_precision:.4f}")
+    metric_cols[2].metric("Current recall", f"{current_recall:.4f}")
+    metric_cols[3].metric("Candidate delta", f"{f1_delta:+.4f}")
+
+    detail_cols = st.columns([0.85, 1.15])
+    with detail_cols[0]:
+        current_status = "present" if model_state["current_model_exists"] else "missing"
+        candidate_status = "present" if model_state["candidate_model_exists"] else "missing"
+        latest_history = model_state["history"][-1] if model_state["history"] else {}
+        latest_source = latest_history.get("model_source", "") or current_result.get("model_source", "")
+
+        st.markdown(
+            f"""
+            <div class="analysis-note">
+              <strong>Current model artifact</strong>: {current_status}<br>
+              <strong>Candidate artifact</strong>: {candidate_status}<br>
+              <strong>Current model source</strong>: {latest_source or "unknown"}<br>
+              <strong>Current artifact updated</strong>: {model_state["current_model_updated_at"] or "unknown"}<br>
+              <strong>Candidate artifact updated</strong>: {model_state["candidate_model_updated_at"] or "unknown"}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with detail_cols[1]:
+        st.plotly_chart(
+            build_model_history_figure(model_state["history"]),
+            use_container_width=True,
+            config={"displaylogo": False},
+            key="model_ops_history_chart",
+        )
+
+
+def render_overview_tab(df: pd.DataFrame, payload: dict, base_dir: str) -> None:
     if df.empty:
         st.warning("No entity data found yet. Run the ingestion and NER pipeline first.")
         return
@@ -1319,6 +1455,8 @@ def render_overview_tab(df: pd.DataFrame, payload: dict) -> None:
             config={"displaylogo": False},
             key="overview_type_mix_chart",
         )
+
+    render_model_ops_panel(base_dir)
 
     st.subheader("Hot Topics")
     topic_cols = st.columns(3)
@@ -1582,6 +1720,39 @@ def render_review_tab(base_dir: str, article_metadata: dict[str, dict]) -> None:
     stats[3].metric("Correct", f"{(df['status'] == 'correct').sum():,}")
     stats[4].metric("Reject", f"{(df['status'] == 'reject').sum():,}")
 
+    ready_count = int(df["status"].astype(str).str.lower().isin(["accept", "correct"]).sum())
+    train_ready = int(
+        df[
+            df["status"].astype(str).str.lower().isin(["accept", "correct"])
+            & df["split"].astype(str).str.lower().eq("train")
+        ].shape[0]
+    )
+    eval_ready = int(
+        df[
+            df["status"].astype(str).str.lower().isin(["accept", "correct"])
+            & df["split"].astype(str).str.lower().eq("eval")
+        ].shape[0]
+    )
+    review_path = Path(base_dir) / "review" / "label_review.csv"
+    review_updated_at = (
+        datetime.datetime.fromtimestamp(review_path.stat().st_mtime, tz=datetime.UTC).isoformat()
+        if review_path.exists()
+        else "not saved yet"
+    )
+    readiness_status = "ready for retrain" if ready_count >= 20 and train_ready > 0 and eval_ready > 0 else "needs more reviewed labels"
+    st.markdown(
+        f"""
+        <div class="analysis-note">
+          <strong>Retrain readiness</strong>: {readiness_status}<br>
+          <strong>Accepted or corrected labels</strong>: {ready_count}<br>
+          <strong>Train-ready labels</strong>: {train_ready} &nbsp; | &nbsp;
+          <strong>Eval-ready labels</strong>: {eval_ready}<br>
+          <strong>Working review CSV updated</strong>: {review_updated_at}
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
     control_cols = st.columns([1, 1, 1, 2])
     week_options = ["All"] + sorted([value for value in df["week"].astype(str).unique() if value and value != "nan"])
     type_options = ["All"] + sorted([value for value in df["type"].astype(str).unique() if value and value != "nan"])
@@ -1743,7 +1914,7 @@ def main() -> None:
     tabs = st.tabs(["Overview", "Graph Console", "Review Queue"])
 
     with tabs[0]:
-        render_overview_tab(df, payload)
+        render_overview_tab(df, payload, base_dir)
     with tabs[1]:
         render_graph_tab(df, edges, payload)
     with tabs[2]:
