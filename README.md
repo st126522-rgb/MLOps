@@ -1,57 +1,120 @@
-# AI News NER Pipeline
+# AI News Entity Intelligence Platform
 
-This repo is easiest to approach in three stages:
+This repository is an end-to-end MLOps project for ingesting AI news, extracting named entities, monitoring drift, reviewing low-confidence predictions, training improved NER models, and promoting better models into production.
 
-1. Run everything locally with `local_data/`.
-2. Repeat the same flow on manually created AWS resources.
-3. Replace the manual AWS setup with Terraform.
+The repo is intentionally organized around a simple operating path:
 
-The code now defaults to local mode so you can validate the pipeline before touching cloud infrastructure.
-For the manual cloud setup, use [AWS_MANUAL_ARCHITECTURE_GUIDE.md](/C:/Users/gaurav/OneDrive/Desktop/MLOps/AWS_MANUAL_ARCHITECTURE_GUIDE.md).
+1. Run the full pipeline locally.
+2. Run the same pipeline on one AWS EC2 runner with S3 as the artifact store.
+3. Recreate the baseline cloud infrastructure with Terraform.
 
-## What the pipeline does
+The current GitHub repository is: [https://github.com/st126522-rgb/MLOps](https://github.com/st126522-rgb/MLOps)
 
-The project ingests AI news, extracts named entities, tracks confidence drift, and builds graph-style outputs for inspection.
+## What This Project Does
+
+The pipeline processes AI news articles and produces operational outputs across the full ML lifecycle:
+
+- `ingest.py` fetches RSS news batches.
+- `NER.py` runs transformer-based NER and adds a domain-specific `MODEL` entity type.
+- `drift.py` tracks confidence drift and low-confidence span rates.
+- `graph.py` builds graph-style HTML outputs.
+- `dashboard.py` generates a richer comparison dashboard for local or EC2 demo use.
+- `label_review.py` exports and re-imports human-reviewed label corrections.
+- `train.py` fine-tunes a candidate model.
+- `eval.py` evaluates current and candidate models and enforces an F1 gate.
+- `promote_model.py` promotes a passing candidate into `models/current`.
+
+## Services And Tooling Used
+
+### Implemented in the codebase today
+
+- `Amazon S3`
+  Stores raw articles, extracted entities, drift outputs, label queue files, graphs, models, and eval results.
+- `Amazon EC2`
+  Runs the Python pipeline in the manual AWS path.
+- `IAM role + instance profile`
+  Gives the EC2 runner scoped S3 access.
+- `AWS CLI`
+  Used for bucket checks, artifact sync, uploading reviewed labels, model sync, and Terraform state bootstrap.
+- `AWS Systems Manager (SSM)`
+  Recommended for Session Manager access and for Run Command scheduling targets in the manual ops flow.
+- `Terraform`
+  Recreates the baseline infra stack currently defined in `terraform/main.tf`.
+- `GitHub Actions`
+  Draft CI/CD workflow in `.github/workflows/deploy.yml` for tests, Terraform, EC2 deploy, and evaluation gating.
+
+### Used in the documented manual AWS operating path
+
+- `EventBridge Scheduler`
+  Optional cloud-native scheduler for invoking SSM Run Command.
+- `CloudWatch`
+  Intended for logs, custom drift metrics, and alarms.
+- `SNS`
+  Intended for simple email alerts.
+
+### Mentioned as later-stage or optional architecture upgrades
+
+- `Step Functions`
+  Optional orchestration layer after the single EC2 shell script is stable.
+- `DynamoDB`
+  Optional query/index layer if the dashboard needs faster cloud lookups.
+- `SageMaker`
+  Optional future training service; current training flow stays on EC2/local disk.
+
+## Repository Layout
 
 ```text
-ingest.py  ->  raw batches
-NER.py     ->  entities + drift logs + label queue
-drift.py   ->  drift reports + optional alerts
-graph.py   ->  HTML graph, timeline, and table views
-dashboard.py -> polished graph dashboard with timeframe comparison
-backfill_model_entities.py -> upgrades older outputs with MODEL entities
-eval.py    ->  F1 metrics for the current or candidate model
-label_review.py -> export/import human-reviewed labels
-train.py    -> fine-tune a local candidate model
-promote_model.py -> promote a passing candidate to current
+.github/workflows/deploy.yml       Draft GitHub Actions workflow
+pipeline/                          Pipeline implementation
+  run_local.py                     Local orchestration implementation
+  config.py                        Runtime configuration and thresholds
+  ingest.py                        RSS ingestion
+  NER.py                           NER inference plus MODEL entity enrichment
+  entity_postprocess.py            MODEL entity merge logic
+  drift.py                         Drift metrics and alert conditions
+  graph.py                         HTML graph generation
+  dashboard.py                     Static dashboard generation
+  label_review.py                  Human review export/import flow
+  train.py                         Candidate model fine-tuning
+  eval.py                          Evaluation and F1 gate
+  promote_model.py                 Candidate-to-current promotion
+  backfill_model_entities.py       Upgrade older outputs with MODEL entities
+  s3_utils.py                      Local/S3 storage abstraction
+  requirements.txt                 Runtime dependencies for deploy jobs
+  tests/test_pipeline.py           Offline unit tests
+terraform/                         Baseline AWS infrastructure
+  main.tf
+  variables.tf
+  outputs.tf
+  terraform.tfvars.example
+run_local.py                       Root wrapper for `pipeline/run_local.py`
+requirements.txt                   Local dependency install file
+docs/                              Manual AWS and Git workflow guides
+notebooks/analysis.ipynb           Exploratory notebook
+lib/                               Static browser assets for graph outputs
 ```
+## Storage Layout
 
-## Repository layout
+The pipeline uses the same logical structure locally and in S3:
 
 ```text
-config.py         Runtime config for local or AWS execution
-ingest.py         Fetches RSS articles
-NER.py            Runs Hugging Face NER on batches
-drift.py          Computes drift metrics from confidence history
-graph.py          Builds graph and dashboard-style HTML outputs
-dashboard.py      Polished local UI for hot topics and graph comparison
-backfill_model_entities.py  Adds MODEL entities to older local outputs
-eval.py           Runs evaluation and gate logic
-s3_utils.py       Shared storage helpers for local mode and S3
-run_local.py      One-command local runner
-label_review.py   Label queue review workflow
-train.py          Local candidate fine-tuning
-promote_model.py  Local model promotion
-main.tf           Terraform infrastructure
-variables.tf      Terraform inputs
-outputs.tf        Terraform outputs
-deploy.yml        GitHub Actions workflow draft
-GIT_WORKFLOW.md   Suggested branch and commit workflow
+raw/
+processed/
+entities/
+drift/
+label-queue/
+labeled/
+review/
+eval/
+graphs/
+models/current/
+models/candidate/
+logs/
 ```
 
-## Local setup
+## Local Quickstart
 
-### 1. Create an environment
+### 1. Create and activate a virtual environment
 
 ```powershell
 python -m venv .venv
@@ -63,18 +126,16 @@ pip install -r requirements.txt
 ### 2. Run tests
 
 ```powershell
-python -m pytest -q
+python -m pytest -q pipeline/tests
 ```
 
-### 3. Execute the pipeline locally
-
-Run the whole pipeline:
+### 3. Run the full local pipeline
 
 ```powershell
 python run_local.py --stage all
 ```
 
-Run individual stages:
+### 4. Run individual stages if needed
 
 ```powershell
 python run_local.py --stage ingest
@@ -82,247 +143,290 @@ python run_local.py --stage ner
 python run_local.py --stage backfill-models
 python run_local.py --stage drift
 python run_local.py --stage graph
-python run_local.py --stage dashboard
+python run_local.py --stage dashboard --graph-open
 python run_local.py --stage eval
 ```
 
-Optional graph auto-open:
+### 5. Local output location
 
-```powershell
-python run_local.py --stage dashboard --graph-open
-```
+Generated artifacts are written under `local_data/`.
 
-### 4. Local outputs
+## Model Training And Promotion Loop
 
-Generated files land under `local_data/`:
+This repo already supports a full local human-in-the-loop model improvement cycle.
 
-```text
-local_data/raw/
-local_data/entities/
-local_data/drift/
-local_data/label-queue/
-local_data/graphs/
-local_data/eval/
-```
-
-## Polished Local Dashboard
-
-The polished dashboard is the UI artifact to validate before AWS hosting:
-
-```powershell
-python run_local.py --stage dashboard --graph-open
-```
-
-It generates:
-
-```text
-local_data/graphs/dashboard_YYYYMMDD_HHMMSS.html
-```
-
-The dashboard includes:
-
-- Hot-topic cards ranked by mentions and confidence.
-- Clear type colors for `ORG`, `MODEL`, `MISC`, `PER`, and `LOC`.
-- Confidence and flagged-span trends.
-- Zoomable, pannable graph panels.
-- Two timeframe sliders for comparing graph state across weeks.
-- A minimum node-size filter based on mention count.
-- A minimum edge-strength filter based on shared article co-mentions.
-- A display-labels toggle for decluttering dense views.
-- An only-newly-added-nodes toggle for spotting emerging topics.
-- Entity-type highlight filters for `ORG`, `MODEL`, `MISC`, `PER`, and `LOC`.
-- Edge hover text explaining which nodes are connected and how often.
-- New, dropped, and rising entities between the selected timeframes.
-
-## MODEL Entity Type
-
-The base transformer emits `ORG`, `PER`, `LOC`, and `MISC`. This project adds a domain-specific `MODEL` type for AI model and product names such as `GPT-5`, `Claude`, `Gemini`, `DeepSeek`, `Llama`, `Mistral`, `Grok`, `Qwen`, `Sora`, and `DALL-E`.
-
-For new NER runs, [NER.py](/C:/Users/gaurav/OneDrive/Desktop/MLOps/NER.py) adds `MODEL` automatically. For older local entity outputs, run:
-
-```powershell
-python run_local.py --stage backfill-models
-python run_local.py --stage dashboard --graph-open
-```
-
-## Complete Local ML Loop Before AWS
-
-Do not move to manual AWS until this loop works locally.
-
-### 1. Collect low-confidence review candidates
-
-`LABEL_CONFIDENCE_THRESH` is set to `0.85`, so the label queue intentionally captures more uncertain spans for review. Drift still uses the lower `DRIFT_LOW_CONFIDENCE_THRESH = 0.70` so daily novelty does not create noisy drift alerts.
+### Export uncertain predictions for review
 
 ```powershell
 python run_local.py --stage all
 python label_review.py export --limit 200
 ```
 
-This writes:
+This produces:
 
 ```text
 local_data/review/label_review.csv
 ```
 
-Edit the CSV:
-
-- Use `status=accept` when the suggested entity and type are correct.
-- Use `status=correct` and fill `corrected_entity` plus `corrected_type` when the span is useful but wrong.
-- Use `status=reject` for junk spans like generic words.
-- Keep `split=train` for training examples and `split=eval` for held-out evaluation examples.
-
-### 2. Build local train and eval datasets
+### Build train and eval datasets
 
 ```powershell
 python label_review.py build-datasets
 ```
 
-This writes:
-
-```text
-local_data/labeled/train_set.json
-local_data/eval/test_set.json
-```
-
-### 3. Evaluate the current baseline
+### Evaluate the current baseline
 
 ```powershell
 python eval.py --model-prefix models/current --upload-results --current-result
 ```
 
-If `models/current` does not exist yet, this uses the base Hugging Face model and stores the baseline eval result locally.
-
-### 4. Fine-tune a candidate model
-
-Start small while proving the workflow:
+### Train a candidate
 
 ```powershell
 python train.py --epochs 1 --max-samples 100 --overwrite
 ```
 
-This writes:
-
-```text
-local_data/models/candidate/
-```
-
-### 5. Evaluate the candidate and run the gate
+### Evaluate and run the gate
 
 ```powershell
 python eval.py --model-prefix models/candidate --upload-results --candidate-result
 python eval.py --check-gate
 ```
 
-### 6. Promote only if the gate passes
+### Promote a passing model
 
 ```powershell
 python promote_model.py
 ```
 
-This copies:
+## AWS Operating Model
 
-```text
-local_data/models/candidate/
-```
+The simplest working cloud design is:
 
-to:
+- `S3` as the source of truth for artifacts.
+- `EC2` as the pipeline runner.
+- `IAM role` attached to EC2 for bucket access.
+- `SSM Session Manager` for remote shell access without depending on open SSH.
+- `SSM Run Command` or `cron` for execution.
+- `AWS CLI` for verification, sync, and artifact movement.
+- `CloudWatch` and `SNS` as the next monitoring layer.
 
-```text
-local_data/models/current/
-```
+The detailed step-by-step manual deployment is documented in `docs/AWS_MANUAL_ARCHITECTURE_GUIDE.md`.
 
-At this point the local loop is complete: ingest, NER, drift, graph, label review, train, eval, and promote all run before AWS.
+## AWS CLI Commands We Actually Use
 
-## Stage 2: Manual AWS architecture
+These are the commands reflected by the current repo and manual guide.
 
-After local execution is stable, move to a manually created AWS setup before Terraform.
-
-### Create these resources manually
-
-- 1 private S3 bucket for pipeline data
-- 1 EC2 instance for scheduled execution
-- 1 IAM role or IAM user with S3 read/write access
-- 1 EC2 key pair for SSH access
-- 1 security group allowing SSH from your IP
-
-### Set the environment on EC2
+### Verify identity and bucket access
 
 ```bash
-export LOCAL_MODE=false
-export S3_BUCKET=your-bucket-name
-export AWS_DEFAULT_REGION=us-east-1
+aws sts get-caller-identity
+aws s3 ls s3://$S3_BUCKET/
 ```
 
-### Run the same scripts against AWS
-
-```bash
-python ingest.py
-python NER.py
-python drift.py
-python eval.py --bucket your-bucket-name --upload-results
-```
-
-### Suggested manual validation order
-
-1. Run `ingest.py` and confirm `raw/` files appear in S3.
-2. Run `NER.py` and confirm `entities/`, `drift/`, and `label-queue/` appear.
-3. Run `drift.py` and confirm `drift/reports/` is written.
-4. Run `eval.py` and confirm `eval/` results are stored.
-
-## Stage 3: Terraform
-
-Use Terraform only after the manual AWS version behaves the way you want.
-
-### Prerequisites
-
-- Terraform installed locally
-- AWS CLI configured
-- An existing EC2 key pair in AWS
-- A manually created S3 bucket for Terraform state
-
-### Bootstrap Terraform state bucket
+### Bootstrap the Terraform remote state bucket
 
 ```bash
 aws s3 mb s3://ai-news-mlops-tfstate --region us-east-1
 aws s3api put-bucket-versioning --bucket ai-news-mlops-tfstate --versioning-configuration Status=Enabled
 ```
 
-### Create `terraform.tfvars`
+### Validate pipeline outputs in S3
+
+```bash
+aws s3 ls s3://$S3_BUCKET/raw/ --recursive
+aws s3 ls s3://$S3_BUCKET/entities/ --recursive
+aws s3 ls s3://$S3_BUCKET/drift/ --recursive
+aws s3 ls s3://$S3_BUCKET/label-queue/ --recursive
+aws s3 ls s3://$S3_BUCKET/drift/reports/ --recursive
+```
+
+### Sync data from S3 to EC2 local disk for graph/dashboard generation
+
+```bash
+aws s3 sync s3://$S3_BUCKET/raw local_data/raw --quiet
+aws s3 sync s3://$S3_BUCKET/entities local_data/entities --quiet
+aws s3 sync s3://$S3_BUCKET/drift local_data/drift --quiet
+aws s3 sync s3://$S3_BUCKET/label-queue local_data/label-queue --quiet
+```
+
+### Upload generated HTML dashboards back to S3
+
+```bash
+aws s3 sync local_data/graphs s3://$S3_BUCKET/graphs --exclude "*" --include "*.html" --quiet
+```
+
+### Human review CSV round-trip
+
+Download locally:
+
+```powershell
+aws s3 cp s3://ai-news-mlops-gaurav-2026/review/label_review.csv .
+```
+
+Upload reviewed labels:
+
+```powershell
+aws s3 cp .\label_review.csv s3://ai-news-mlops-gaurav-2026/review/label_review.csv
+```
+
+### Sync labeled data and promoted models
+
+```bash
+aws s3 sync local_data/labeled s3://$S3_BUCKET/labeled
+aws s3 sync local_data/eval s3://$S3_BUCKET/eval
+aws s3 sync local_data/models/current s3://$S3_BUCKET/models/current --delete
+```
+
+## SSM Access And Scheduling
+
+The manual ops path recommends attaching `AmazonSSMManagedInstanceCore` to the EC2 role.
+That enables:
+
+- `Session Manager` for shell access without exposing SSH broadly.
+- `Run Command` for invoking the pipeline wrapper script remotely.
+- `EventBridge Scheduler` as a managed hourly trigger that targets SSM.
+
+Recommended manual scheduling progression:
+
+1. Run the pipeline by hand on EC2.
+2. Put the working commands in `/opt/ai-news-mlops/run_cloud_pipeline.sh`.
+3. Schedule that script with `cron` first.
+4. Move to `EventBridge Scheduler -> SSM Run Command` if you want a cleaner AWS-native demo.
+5. Add `Step Functions -> SSM` only if you want explicit workflow orchestration in the final presentation.
+
+## Terraform Stack In This Repo
+
+The current `terraform/main.tf` provisions a baseline stack:
+
+- `1 S3 bucket`
+- `S3 public access block`
+- `S3 versioning`
+- `S3 lifecycle rules for raw/ and label-queue/`
+- `placeholder S3 objects for core prefixes`
+- `1 IAM role`
+- `1 custom S3 access policy`
+- `1 IAM instance profile`
+- `1 security group`
+- `1 Ubuntu EC2 instance`
+- `EC2 user_data` that installs Python tooling and writes a simple cron job
+
+### Important current limitation
+
+Terraform does **not** yet fully encode the richer manual ops path described in `docs/AWS_MANUAL_ARCHITECTURE_GUIDE.md`.
+In particular, the current Terraform stack does not yet provision:
+
+- `AmazonSSMManagedInstanceCore`
+- `CloudWatch` log shipping or alarms
+- `SNS` topics/subscriptions
+- `EventBridge Scheduler`
+- `Step Functions`
+- `DynamoDB`
+- `SageMaker`
+
+So the README should treat Terraform as the baseline infrastructure recreation path, not the complete final-cloud architecture.
+
+## Recreate The Terraform-Managed Stack From CLI
+
+This is the shortest practical rebuild flow for the infrastructure currently represented in the repo.
+It assumes you already have AWS CLI credentials with enough permissions and that Terraform is installed.
+
+### 1. Pick values
+
+```bash
+export AWS_DEFAULT_REGION=us-east-1
+export TF_STATE_BUCKET=ai-news-mlops-tfstate
+export PIPELINE_BUCKET=ai-news-mlops-gaurav-2026
+export KEY_PAIR_NAME=ai-news-mlops-key
+```
+
+### 2. Create the Terraform state bucket once
+
+```bash
+aws s3 mb s3://$TF_STATE_BUCKET --region $AWS_DEFAULT_REGION
+aws s3api put-bucket-versioning --bucket $TF_STATE_BUCKET --versioning-configuration Status=Enabled
+```
+
+### 3. Create an EC2 key pair if you do not already have one
+
+Linux/macOS:
+
+```bash
+aws ec2 create-key-pair --key-name $KEY_PAIR_NAME --query 'KeyMaterial' --output text > ${KEY_PAIR_NAME}.pem
+chmod 400 ${KEY_PAIR_NAME}.pem
+```
+
+PowerShell:
+
+```powershell
+aws ec2 create-key-pair --key-name $env:KEY_PAIR_NAME --query KeyMaterial --output text | Out-File -Encoding ascii "$env:KEY_PAIR_NAME.pem"
+```
+
+### 4. Create `terraform.tfvars`
 
 ```hcl
-s3_bucket_name = "your-unique-pipeline-bucket"
-key_pair_name  = "your-existing-keypair"
+s3_bucket_name = "ai-news-mlops-gaurav-2026"
+key_pair_name  = "ai-news-mlops-key"
 environment    = "dev"
 ```
 
-### Apply
+### 5. Apply the stack
 
 ```bash
 terraform init
 terraform validate
 terraform plan
-terraform apply
+terraform apply -auto-approve
 ```
 
-### After apply
+### 6. Read outputs
 
-Use the outputs in [outputs.tf](/C:/Users/gaurav/OneDrive/Desktop/MLOps/outputs.tf) to SSH into EC2 and confirm the bucket, IP, and dashboard URL.
+```bash
+terraform output
+```
 
-## Git workflow
+### 7. Destroy when finished
 
-The short version is:
+```bash
+terraform destroy
+```
 
-1. Pull `main`.
-2. Create a branch.
-3. Run tests and the local pipeline.
-4. Commit only source and docs changes.
-5. Push and open a PR.
+Note: `terraform destroy` removes only the Terraform-managed resources. If you add manual extras like EventBridge schedules, SNS topics, SSM associations, or CloudWatch alarms outside Terraform, those must be cleaned up separately.
 
-Full commands are in [GIT_WORKFLOW.md](/C:/Users/gaurav/OneDrive/Desktop/MLOps/GIT_WORKFLOW.md).
+## Suggested EC2 Runtime Environment
 
-## Notes
+For the manual AWS path, the project expects environment variables like:
 
-- `local_data/` and generated HTML outputs are ignored by git.
-- The current GitHub Actions file is still a draft and should be aligned with the flat repo layout before relying on it for deployment.
-- `eval.py` uses mock data when no eval test set exists yet.
-- Local level verification complete. Now testing on AWS
+```bash
+export LOCAL_MODE=false
+export S3_BUCKET=ai-news-mlops-gaurav-2026
+export AWS_DEFAULT_REGION=us-east-1
+export LABEL_CONFIDENCE_THRESH=0.85
+export DRIFT_LOW_CONFIDENCE_THRESH=0.70
+```
+
+## Known Gaps And Honest Notes
+
+- `.github/workflows/deploy.yml` is still a draft and should be validated against your final EC2 operating path before treating it as production CI/CD.
+- The Terraform EC2 bootstrap currently installs and schedules only a minimal ingestion path, not the full end-to-end wrapper script from the manual guide.
+- The manual guide is more complete operationally than the current Terraform stack.
+- `requirements.txt` is intentionally small and may need expansion if you want the full dashboard/training flow on a fresh machine.
+- The test suite in `pipeline/tests/test_pipeline.py` is offline-friendly and avoids real AWS credentials.
+
+## Recommended Final Project Story
+
+If this README is being finalized for submission or handoff, the cleanest way to describe the project is:
+
+1. `Local mode` proves the full ML workflow end to end.
+2. `Manual AWS mode` proves the same workflow on real cloud infrastructure using S3, EC2, IAM, AWS CLI, and SSM.
+3. `Terraform mode` recreates the baseline cloud stack and is the starting point for fully codifying the final AWS architecture.
+
+## Additional Docs
+
+- `docs/AWS_MANUAL_ARCHITECTURE_GUIDE.md` for the detailed manual AWS runbook.
+- `docs/GIT_WORKFLOW.md` for repo workflow.
+- `terraform/main.tf`, `terraform/variables.tf`, and `terraform/outputs.tf` for infrastructure.
+- `.github/workflows/deploy.yml` for the draft CI/CD path.
+
+
+

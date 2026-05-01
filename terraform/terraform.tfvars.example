@@ -1,0 +1,4 @@
+aws_region     = "us-east-1"
+s3_bucket_name = "ai-news-mlops-yourname-2025"
+key_pair_name  = "your-ec2-keypair-name"
+environment    = "dev"
